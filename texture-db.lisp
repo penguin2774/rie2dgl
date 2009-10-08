@@ -102,6 +102,7 @@
       (setf quad-points.y1 (- (* height h-ratio) height))
       (setf quad-points.y2 (* height h-ratio))))))
 
+  
 (defmethod render ((self render-spec))
   (with-slots (list-cache texture-rect quad-points) self
     (declare (optimize (safety 1) (speed 3))
@@ -138,12 +139,12 @@
   (if (and (slot-boundp self 'list-cache) (list-cache self) (gl:is-list (list-cache self)))
       t nil))
 
-(defgeneric cache (object ))
+(defgeneric cache (object))
 (defmethod cache ((self render-spec))
   (with-slots (texture-rect quad-points) self
     
     (let ((name (gl:gen-lists 1)))
-     
+      
       (with-xyzs ((texture-rect 22)
 		  (quad-points 22))
 	(gl:with-new-list (name :compile)
