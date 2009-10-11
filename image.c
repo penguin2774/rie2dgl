@@ -48,10 +48,11 @@ void render_image(struct image *img)
   float rot = img->rot;
   float scale = img->scale;
   struct sprite_cons * sp;
+  //printf("Render is called! x:%f y:%f z:%f\n", loc[0], loc[1], loc[2]);
   glEnable(GL_BLEND);
   glEnable(GL_TEXTURE_2D);
   glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glColor3f (0.0, 0.0, 0.0);
+//  glColor3f (0.0, 0.0, 0.0);
   glPushMatrix();
   glTranslatef(loc[0], loc[1], loc[2]);
   if(rot)
@@ -62,10 +63,13 @@ void render_image(struct image *img)
   
   glBindTexture( GL_TEXTURE_2D, img->tex->name);
   
-  if(img->spec)
+  if(img->spec) {
+
     render_render_spec(img->spec);
-  else
+  }
+  else {
     render_render_spec(img->tex->spec);
+  }
   for(sp = img->subs; sp != 0; sp = sp->next) {
     render(sp->data);
   }
@@ -125,7 +129,7 @@ union sprite * pop_subimage(struct image * image)
 
 inline struct image * rotate_image(struct image * image, float radians)
 {
-  image->rot = radians;
+  image->rot += radians;
   return image;
 }
 

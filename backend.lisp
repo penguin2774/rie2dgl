@@ -273,8 +273,7 @@
   (gl:disable :depth-test)
   (gl:disable :lighting)
   (gl:disable :dither)
-  (gl:disable :blend)
-  )
+  (gl:disable :blend))
 
    
 
@@ -294,16 +293,31 @@
   
   (gl:load-identity))
 
-(defconstant +SPRITES+ 1000)
+(defparameter +SPRITES+ 10000)
+(defun make-bounce-fn (low high &key (step 1) start-value (start-dir :up))
+  (assert (or (eq start-dir :up)
+	      (eq start-dir :down)))
+  (let ((var (or start-value low))
+	(dir start-dir))
+    (lambda ()
+      (if (eq dir :up)
+	  (when (>= (incf var step) high)
+	    (setf var high)
+	    (setf dir :down))
+	  (when (<= (decf var step) low)
+	    (setf var low)
+	    (setf dir :up)))
+      var)))
 
 (defun test ()
   (sdl:with-init ()
     
       (let ((w (sdl:window 512 512 :flags sdl:SDL-OPENGL :title-caption "Testing!"))
-	    texture sprites)
+	    texture sprites start-p
+	    )
 	    
 	(let ((tex (first (gl:gen-textures 1))))
-	  (sdl:with-surface (alien-surf (sdl-image:load-image "/home/nathan/prj/rie2dgl/test-images/1eyed_alien_stance-2.png"))
+	  (sdl:with-surface (alien-surf (sdl-image:load-image "/home/nathan/prj/rie2dgl/test-images/1eyed_alien_stance-2.png" ))
 	    
 	    (gl:enable :texture-2d)
 	    (setf texture (make-texture tex (make-render-spec (sdl:width alien-surf)
@@ -311,12 +325,17 @@
 	    
 	    (standard-bind tex alien-surf)
 	    (gl:disable :texture-2d)))
-	
-	
+;	(cache (foreign-slot-value texture 'texture 'spec)) 
+;	(print (cachedp (foreign-slot-value texture 'texture 'spec)))
+ 
 	(setf sprites (loop repeat +SPRITES+
 	  
-			 collect (make-image texture (random 512.0) (random 512.0) 0.0 1.0 0.0)))
-	
+ 			 collect (make-image texture (random 512.0) (random 512.0) 0.0 1.0 0.0)))
+;; 	(setf sprites (list (make-image texture 0.0 0.0 0.0 1.0 0.0)
+;; 			    (make-image texture 0.0 512.0 0.0 1.0 0.0)
+;; 			    (make-image texture 512.0 512.0 0.0 1.0 0.0)
+;; 			    (make-image texture 512.0 0.0 0.0 1.0 0.0)))
+			    
 	
 	(resize-window 512 512)
 	(setup-RC)
@@ -331,12 +350,17 @@
 			   t)
 	  (:idle ()
 		 (clear-scene)
-
+		 
+ 		 
 		 (loop for i in sprites
-		      do (render-image i))
+		  
+		    do 
+		      (render-image i))
+
 
 		 (gl:flush)
 		 (sdl:update-display)))
+
 
 	
 	)))

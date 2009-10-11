@@ -27,8 +27,8 @@ struct render_spec * recenter(struct render_spec *spec)
   if(cachedp(spec))
      free_cache(spec);
   spec->quad_points[0] = spec->w * spec->center_ratio[0] - spec->w;
-  spec->quad_points[1] = spec->w * spec->center_ratio[0];
-  spec->quad_points[2] = spec->h * spec->center_ratio[1] - spec->h;
+  spec->quad_points[1] = spec->h * spec->center_ratio[1] - spec->h;
+  spec->quad_points[2] = spec->w * spec->center_ratio[0];
   spec->quad_points[3] = spec->h * spec->center_ratio[1];
 }
 
@@ -46,12 +46,13 @@ void render_render_spec(struct render_spec * spec)
   GLuint name = glGenLists(1);
   float * trect = spec->texture_rect;
   float * qpoints = spec->quad_points;
+
   if(cachedp(spec)) {
-    //printf("Using list\n");
+    
     glCallList(spec->list_cache);
   }
   else {
-    //    printf("Not cached!\n");
+
     glBegin(GL_QUADS);
 
   // texture points are reversed on the y axis to flip the image

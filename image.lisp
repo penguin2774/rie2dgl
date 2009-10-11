@@ -116,7 +116,7 @@
 ;	(declare (single-float location.x location.y location.z))
 	(gl:translate (aref location 0) (aref location 1) (aref location 2));)
       
-      (if (not (zerop rotation)) 
+	(if (not (zerop rotation)) 
 	  (gl:rotate rotation 0.0 0.0 1.0))
 
      (if (not (equal scale 1.0))
