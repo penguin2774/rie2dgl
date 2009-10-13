@@ -21,18 +21,19 @@ struct texture {
 
 };
 
-
-union sprite {
+struct sprite {
   enum sprite_type {
   SPRITE_IMAGE,
   SPRITE_ANIMATION} type;
-
-  struct image * image;
-  struct animation * anim;
+  union sprite_union {
+    struct image * image;
+    struct animation * anim;
+    void * raw;
+  } data;
 };
 
 struct sprite_cons {
-  union sprite * data;
+  struct sprite * data;
   struct sprite_cons * next;
 };
 
@@ -108,12 +109,12 @@ struct image * set_image_center(struct image * image, float w_ratio, float h_rat
 
 
     
-struct image * push_subimage(struct image * image, union sprite *sub);
+struct image * push_subimage(struct image * image, struct sprite *sub);
 
 // no way of checking success...
-struct image * rem_subimage(struct image * image, union sprite *sub);
+struct image * rem_subimage(struct image * image, struct sprite *sub);
 
-union sprite * pop_subimage(struct image * image);
+struct sprite * pop_subimage(struct image * image);
 
 
 inline struct image * rotate_image(struct image * image, float radians);
@@ -164,6 +165,8 @@ void render_animation(struct animation * anim);
 // #################################### Sprite Functions
 
 
-void free_sprite(union sprite *);
+void free_sprite(struct sprite *);
 
-void render(union sprite * sprite);
+void render_sprite(struct sprite * sprite);
+
+void render_sprites (struct sprite ** sprites, unsigned int count);

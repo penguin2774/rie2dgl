@@ -23,7 +23,7 @@ struct image * make_image(struct texture *tex, float x, float y, float z, float 
 void free_image(struct image *img)
 {
   // Freeing a image frees the sub images. 
-  union sprite * i;
+  struct sprite * i;
   while(i = pop_subimage(img)) 
     free_sprite(i);
   if(img->spec)
@@ -71,7 +71,7 @@ void render_image(struct image *img)
     render_render_spec(img->tex->spec);
   }
   for(sp = img->subs; sp != 0; sp = sp->next) {
-    render(sp->data);
+    render_sprite(sp->data);
   }
   glPopMatrix();
   glDisable(GL_BLEND);
@@ -88,7 +88,7 @@ struct image * set_image_center(struct image * image, float w_ratio, float h_rat
 }
 
     
-struct image * push_subimage(struct image * image, union sprite *sub)
+struct image * push_subimage(struct image * image, struct sprite *sub)
 {
   struct sprite_cons * new_cell = malloc(sizeof(struct sprite_cons));
   new_cell->next = image->subs;
@@ -97,7 +97,7 @@ struct image * push_subimage(struct image * image, union sprite *sub)
   return image;
 }
 // no way of checking success...
-struct image * rem_subimage(struct image * image, union sprite *sub)
+struct image * rem_subimage(struct image * image, struct sprite *sub)
 {
   struct sprite_cons * i, * prev;
   prev =  0;
@@ -114,11 +114,11 @@ struct image * rem_subimage(struct image * image, union sprite *sub)
   return image;
 }
 
-union sprite * pop_subimage(struct image * image)
+struct sprite * pop_subimage(struct image * image)
 {
   if (image->subs) {
     struct sprite_cons * cell = image->subs;
-    union sprite * result = cell->data;
+    struct sprite * result = cell->data;
     image->subs = cell->next;
     free(cell);
     return result;

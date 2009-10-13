@@ -51,10 +51,15 @@
   :image
   :animation)
 
-(defcunion sprite
-  (type sprite-type)
+(defcunion sprite-union
   (image (:pointer image))
-  (anim (:pointer animation)))
+  (anim (:pointer animation))
+  (raw (:pointer)))
+
+(defcstruct sprite
+  (type sprite-type)
+  (data sprite-union))
+    
 
 (defconstant anim-stopped (ash 1 0))
 (defconstant anim-loop (ash 1 1))
@@ -65,7 +70,7 @@
 
 
 
-(defcfun set_center (:pointer render-spec)
+(defcfun set-center (:pointer render-spec)
   (spec (:pointer render-spec))
   (w_ratio :int)
   (h_ratio :int))
@@ -191,6 +196,13 @@
   (scale :float)
   (rot :float))
 
+(defun make-animation-from-list (texs frame-rate flags x y z  scale rot)
+  (let ((array (foreign-alloc '(:pointer texture) :count (length texs))))
+    (loop for i in texs
+	 for j from 0
+	 do (setf (mem-aref array '(:pointer texture) j) i))
+  (make-animation array (length texs) frame-rate flags x y z scale rot)))
+
 (defcfun free-animation :void
   (anim (:pointer animation)))
 
@@ -245,13 +257,37 @@
     (anim (:pointer animation)))
 ;; #################################### Sprite Functions
 
+(defcfun make-sprite (:pointer sprite)
+  (data :pointer)
+  (type sprite-type))
+
 
 (defcfun free-sprite :void
   (sprite (:pointer sprite)))
 
-(defcfun render :void
+(defcfun render-sprite :void
   (sprite (:pointer sprite)))
 
+(defcfun render-sprites :void
+  (sprites (:pointer :pointer))
+  (count (:unsigned-int)))
+
+
+(defun get-sprite-data (sprite)
+  (ecase (foreign-slot-value sprite 'sprite 'type)
+    (:image
+     (foreign-slot-value (foreign-slot-value sprite 'sprite 'data) 'sprite-union 'image))
+    (:animation
+     (foreign-slot-value (foreign-slot-value sprite 'sprite 'data) 'sprite-union 'anim))))
+
+(defun get-sprite-image-data (sprite)
+  (ecase (foreign-slot-value sprite 'sprite 'type)
+    (:image
+     (foreign-slot-value (foreign-slot-value sprite 'sprite 'data) 'sprite-union 'image))
+    (:animation
+     (foreign-slot-value (foreign-slot-value (foreign-slot-value sprite 'sprite 'data) 'sprite-union 'anim) 'animation 'image))))
+    
+    
 
 (defparameter *SPRITES* 10000)
 (defun standard-bind (texture surface)
@@ -293,7 +329,7 @@
   
   (gl:load-identity))
 
-(defparameter +SPRITES+ 10000)
+(defparameter +SPRITES+ 500)
 (defun make-bounce-fn (low high &key (step 1) start-value (start-dir :up))
   (assert (or (eq start-dir :up)
 	      (eq start-dir :down)))
@@ -304,38 +340,43 @@
 	  (when (>= (incf var step) high)
 	    (setf var high)
 	    (setf dir :down))
+
 	  (when (<= (decf var step) low)
 	    (setf var low)
 	    (setf dir :up)))
       var)))
 
+(defun bind-textures-to-files (&rest files)
+  
+  (loop for file in files
+       for tex in (gl:gen-textures (length files))
+       collect 
+       (sdl:with-surface (surf (sdl-image:load-image file))
+	 (let ((result (make-texture tex (make-render-spec (sdl:width surf)
+							   (sdl:height surf)))))
+	   (standard-bind tex surf)
+	   (gl:disable :texture-2d)
+	   result))))
+       
+
 (defun test ()
-  (sdl:with-init ()
+  (sdl:with-init (sdl-cffi::sdl-init-video )
     
       (let ((w (sdl:window 512 512 :flags sdl:SDL-OPENGL :title-caption "Testing!"))
-	    texture sprites start-p
-	    )
+	    (textures (bind-textures-to-files  "/home/nathan/prj/rie2dgl/test-images/cow-1.png"
+					       "/home/nathan/prj/rie2dgl/test-images/cow-2.png")) sprites start-p)
 	    
-	(let ((tex (first (gl:gen-textures 1))))
-	  (sdl:with-surface (alien-surf (sdl-image:load-image "/home/nathan/prj/rie2dgl/test-images/1eyed_alien_stance-2.png" ))
-	    
-	    (gl:enable :texture-2d)
-	    (setf texture (make-texture tex (make-render-spec (sdl:width alien-surf)
-					     (sdl:height alien-surf))))
-	    
-	    (standard-bind tex alien-surf)
-	    (gl:disable :texture-2d)))
-;	(cache (foreign-slot-value texture 'texture 'spec)) 
-;	(print (cachedp (foreign-slot-value texture 'texture 'spec)))
- 
-	(setf sprites (loop repeat +SPRITES+
-	  
- 			 collect (make-image texture (random 512.0) (random 512.0) 0.0 1.0 0.0)))
+	(print (length textures))
+	
+	
+	(setf sprites (foreign-alloc '(:pointer sprite) :count +SPRITES+))
+	(loop for i from 0 below +SPRITES+
+	   do (setf (mem-aref sprites '(:pointer sprite) i) (make-sprite (make-animation-from-list textures (float 1/20) ANIM-LOOP (random 512.0) (random 512.0)  0.0 1.0 0.0) :animation)))
 ;; 	(setf sprites (list (make-image texture 0.0 0.0 0.0 1.0 0.0)
 ;; 			    (make-image texture 0.0 512.0 0.0 1.0 0.0)
 ;; 			    (make-image texture 512.0 512.0 0.0 1.0 0.0)
 ;; 			    (make-image texture 512.0 0.0 0.0 1.0 0.0)))
-			    
+	
 	
 	(resize-window 512 512)
 	(setup-RC)
@@ -344,22 +385,39 @@
 
 	(sdl:with-events ()
 	  (:quit-event ()
-			(loop for sprite in sprites
-			      do (free-image sprite))
-			   (free-texture texture)
+			(loop for i from 0 below +SPRITES+
+			   do (free-sprite (mem-aref sprites '(:pointer sprite) i)))
+			(loop for texture in textures
+			     do (free-texture texture))
 			   t)
 	  (:idle ()
 		 (clear-scene)
 		 
- 		 
-		 (loop for i in sprites
-		  
-		    do 
-		      (render-image i))
+ 		 (if start-p 
+		     (loop for i from 0 below +SPRITES+
+			for sprite = (get-sprite-image-data (mem-aref sprites '(:pointer sprite) i))
+			do  
+			  
+			  (move-image  sprite (- (random 10.0) 5.0) (- (random 10.0) 5.0) 0.0)
+			  ))
+		 (render-sprites sprites +SPRITES+)
 
 
 		 (gl:flush)
-		 (sdl:update-display)))
+		 (sdl:update-display))
+	  (:key-down-event (:key key)
+			   (when (sdl:key= key :SDL-KEY-SPACE)
+			     (setf start-p (not start-p))
+			     (if start-p
+				 (loop for i from 0 below +SPRITES+
+				    for sprite = (get-sprite-data (mem-aref sprites '(:pointer sprite) i))
+				    do (set-frame sprite 0)
+				      (stop sprite)
+				      )
+				 (loop for i from 0 below +SPRITES+
+				    for sprite = (get-sprite-data (mem-aref sprites '(:pointer sprite) i))
+				    do (start sprite)
+				      )))))
 
 
 	

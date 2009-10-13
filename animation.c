@@ -4,10 +4,13 @@
 
 struct animation * make_animation(struct texture ** texs, unsigned int count, float frame_rate, long flags, float x, float y, float z, float scale, float rot)
 {
-  struct animation * result = malloc(sizeof(struct texture));
+  struct animation * result = malloc(sizeof(struct animation));
+
   result->image = make_image(texs[0], x, y, z, scale, rot);
+  result->ticks = 0.0;
   result->frames = texs;
   result->frame_count = count;
+  result->frame_rate = frame_rate;
   result->current_frame = 0;
   result->flags = flags;
   return result;
