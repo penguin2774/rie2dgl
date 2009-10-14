@@ -68,7 +68,13 @@
   (w :int)
   (h :int))
 
+(defcfun clone-render-spec (:pointer render-spec)
+  (spec (:pointer render-spec)))
 
+(defcenum flip-axises
+  :h
+  :v
+  :hv)
 
 (defcfun set-center (:pointer render-spec)
   (spec (:pointer render-spec))
@@ -108,7 +114,15 @@
 (defcfun free-texture :void
   (tex (:pointer texture)))
 
+(defcenum texture-clone-op
+  :noop
+  :flip-h
+  :flip-v
+  :flip-hv)
 
+(defcfun clone-texture (:pointer texture)
+  (tex (:pointer texture))
+  (op texture-clone-op))
 
 ; ####################################### image functions 
 
@@ -135,9 +149,9 @@
 
 
 (defcfun set-image-center (:pointer image)
-  (image (:pointer image)
-	 (w-ratio :float)
-	 (h-ratio :float)))
+  (image (:pointer image))
+  (w-ratio :float)
+  (h-ratio :float))
 
 
 (defcfun push-subimage (:pointer image)
@@ -180,7 +194,10 @@
 (defcfun change-image-texture (:pointer image)
   (image (:pointer image))
   (texture (:pointer texture)))
+
+      
     
+
 
 ;; #################################### Animation Fuctions
 
@@ -255,6 +272,10 @@
 
 (defcfun render-animation :void
     (anim (:pointer animation)))
+
+
+
+
 ;; #################################### Sprite Functions
 
 (defcfun make-sprite (:pointer sprite)
@@ -357,8 +378,91 @@
 	   (standard-bind tex surf)
 	   (gl:disable :texture-2d)
 	   result))))
-       
+(defun print-texture-quadpoints (&rest textures)
+  (labels ((print-texture-quad (tex)
+	     (let* ((spec (foreign-slot-value tex 'texture 'spec))
+		    (quads (foreign-slot-value spec 'render-spec 'texture-rect)))
+	       (format t "texture-rect ~a spec ~a quads ~a [~a ~a ~a ~a]~%" tex spec quads  (mem-aref quads :float 0)
+		      (mem-aref quads :float 1)
+		      (mem-aref quads :float 2)
+		      (mem-aref quads :float 3)))))
+    (loop for i in textures
+       if (listp i)
+       do (apply #'print-texture-quadpoints i)
+       else
+       do (print-texture-quad i))))
 
+(defun test-vibrating-cows ()
+  (sdl:with-init (sdl-cffi::sdl-init-video )
+    (sdl:window 512 512 :flags sdl:SDL-OPENGL :title-caption "Testing!")
+      (let* ((textures-l (bind-textures-to-files  "/home/nathan/prj/rie2dgl/test-images/cow-1.png"
+					       "/home/nathan/prj/rie2dgl/test-images/cow-2.png"))
+	     (textures-r (loop for tex in textures-l
+			      collect (clone-texture tex :flip-h)))
+	     sprites start-p)
+	
+	;(print (length textures))
+	
+	(print-texture-quadpoints  textures-l textures-r)
+	(setf sprites (foreign-alloc '(:pointer sprite) :count +SPRITES+))
+	(loop for i from 0 below (/ +SPRITES+ 2)
+	   do (setf (mem-aref sprites '(:pointer sprite) i) (make-sprite (make-animation-from-list textures-l (float 1/20) ANIM-LOOP (random 512.0) (random 512.0)  0.0 1.0 0.0) :animation)))
+	(loop for i from (/ +SPRITES+ 2) below +SPRITES+
+	   do (setf (mem-aref sprites '(:pointer sprite) i) (make-sprite (make-animation-from-list textures-r (float 1/20) ANIM-LOOP (random 512.0) (random 512.0)  0.0 1.0 0.0) :animation)))
+;; 	(setf sprites (list (make-image texture 0.0 0.0 0.0 1.0 0.0)
+;; 			    (make-image texture 0.0 512.0 0.0 1.0 0.0)
+;; 			    (make-image texture 512.0 512.0 0.0 1.0 0.0)
+;; 			    (make-image texture 512.0 0.0 0.0 1.0 0.0)))
+	
+	
+	(resize-window 512 512)
+	(setup-RC)
+	
+	(setf (sdl:frame-rate) 45)
+
+	(sdl:with-events ()
+	  (:quit-event ()
+			(loop for i from 0 below +SPRITES+
+			   do (free-sprite (mem-aref sprites '(:pointer sprite) i)))
+			(loop for texture in (append textures-l textures-r)
+			     do (free-texture texture))
+			   t)
+	  (:idle ()
+		 (clear-scene)
+		 
+ 		 (if start-p 
+		     (loop for i from 0 below +SPRITES+
+			for sprite = (get-sprite-image-data (mem-aref sprites '(:pointer sprite) i))
+			do  
+			  
+			  (move-image  sprite (- (random 10.0) 5.0) (- (random 10.0) 5.0) 0.0)
+			  ))
+		 (render-sprites sprites +SPRITES+)
+
+
+		 (gl:flush)
+		 (sdl:update-display))
+	  (:key-down-event (:key key)
+			   (when (sdl:key= key :SDL-KEY-SPACE)
+			     (setf start-p (not start-p))
+			     (if start-p
+				 (loop for i from 0 below +SPRITES+
+				    for sprite = (get-sprite-data (mem-aref sprites '(:pointer sprite) i))
+				    do (set-frame sprite 0)
+				      (stop sprite)
+				      )
+				 (loop for i from 0 below +SPRITES+
+				    for sprite = (get-sprite-data (mem-aref sprites '(:pointer sprite) i))
+				    do (start sprite)
+				      )))))
+
+
+	
+	)))
+
+    
+    
+ 
 (defun test ()
   (sdl:with-init (sdl-cffi::sdl-init-video )
     
@@ -422,7 +526,3 @@
 
 	
 	)))
-
-    
-    
-  
