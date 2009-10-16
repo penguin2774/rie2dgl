@@ -14,6 +14,7 @@
 
   :components
   ((:file "package")
+   (:file "backend")
    (:file "flags")
    (:file "math3d")
    (:file "texture-db")

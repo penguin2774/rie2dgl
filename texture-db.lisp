@@ -2,16 +2,16 @@
 
 
 (defclass texture ()
-  ((name
-    :reader name
-    :initform nil
-    :documentation "Holds the GL Texture Name produced with gl:gen-textures")
+  ((fp
+    :reader fp
+    :documentation "Holds the foreign pointer to the texture structure")
    (file
     :reader file
     :initarg :file
     :documentation "Holds the file that will be loaded when (bind) is called")
    (render-spec
-    :reader render-spec)
+    :reader render-spec
+    :documentation "Holds the renderspec foreign pointer.")
    (bind-fn
     :accessor bind-fn
     :initarg :bind-fn
@@ -23,11 +23,11 @@
   ((sub-textures
     :reader sub-textures
     :initarg :sub-textures
-    :documentation "A list of all sub textures.")
+    :documentation "A foreign array of textures")
    (length
     :reader len
     :initarg :length
-    :documentation "The length of the list (shouldn't change...)")))
+    :documentation "Length of the foreign array.")))
 
 
 
@@ -38,27 +38,9 @@
     :documentation "Hash table holding the sub textures")))
 
 (defclass render-spec ()
-  ((texture-rect
-    :reader texture-rect
-    :initform (vector 0.0 0.0 1.0 1.0))
-   (quad-points
-    :reader quad-points
-    :initform (vector 0.0 0.0 0.0 0.0))
-   (center-ratio
-    :accessor center-ratio
-    :initform (vector 0.5 0.5))
-   (list-cache
-    :reader list-cache)
-  (width
-    :reader width
-    :initform nil
-    :initarg :width
-    :documentation "Width of the texture.")
-   (height
-    :reader height
-    :initform nil
-    :initarg :height
-    :documentation "Height of the texture.")))
+  ((fp
+    :reader fp
+    :documentation "Foreign pointer to the render spec structure.")))
 
 
   
@@ -67,106 +49,30 @@
 (defvar *texture-database* (make-hash-table :test #'eq))
 (defvar *loaded-textures* (list))
 
-(defmethod initialize-instance  ((self render-spec) &rest initargs &key width height &allow-other-keys)
-  (declare (ignore initargs))
-  (call-next-method)
-  (with-slots ((w width) (h height)) self
-    (setf w width)
-    (setf h height))
-  (recenter self))
 
 
-(defmethod width ((self texture))
-  (declare (inline width))
-  (width (render-spec self)))
-
-(defmethod height ((self texture))
-  (declare (inline height))
-  (height (render-spec self)))
-
-(defgeneric set-center (image w-ratio h-ratio))
+(defgeneric set-center (object w-ratio h-ratio))
 (defmethod set-center ((self render-spec) w-ratio h-ratio)
-  (with-slots (center-ratio) self
-    (setf (elt center-ratio 0) w-ratio)
-    (setf (elt center-ratio 1) h-ratio))
-  (recenter self))
+  (backend:set-center (fp self) w-ratio h-ratio))
 
 (defgeneric recenter (object))
 (defmethod recenter ((self render-spec))
-  (with-slots (width height center-ratio) self
-    (let ((w-ratio (elt center-ratio 0))
-	  (h-ratio (elt center-ratio 1)))
-    (with-xyz-slots ((quad-points 22)) self
-      (setf quad-points.x1 (- (* width w-ratio) width))
-      (setf quad-points.x2 (* width w-ratio))
-      (setf quad-points.y1 (- (* height h-ratio) height))
-      (setf quad-points.y2 (* height h-ratio))))))
+  (backend:recenter (fp self)))
 
   
-(defmethod render ((self render-spec))
-  (with-slots (list-cache texture-rect quad-points) self
-    (declare (optimize (safety 1) (speed 3))
-	     (simple-vector texture-rect)
-	     (simple-vector quad-points))
-    (if (cached? self)
-	(gl:call-list list-cache)
-	(with-xyzs ((texture-rect 22)
-		    (quad-points 22))
-	  (declare (single-float texture-rect.x1 texture-rect.y1
-				 texture-rect.x2 texture-rect.y2
-				 quad-points.x1 quad-points.y1
-				 quad-points.x2 quad-points.y2))
-				 
-	  (gl:with-primitive :quads
-					;  SDL orientates top to bottom, where as GL orientates bottom to top. We flip the texture coordinates to fix that.
-	     (gl:tex-coord texture-rect.x1 texture-rect.y2)
-	    (gl:vertex quad-points.x1 quad-points.y1)
-
-	    (gl:tex-coord texture-rect.x2 texture-rect.y2)
-	    (gl:vertex quad-points.x2 quad-points.y1)
-
-	
-	    (gl:tex-coord texture-rect.x2 texture-rect.y1)
-	    (gl:vertex quad-points.x2 quad-points.y2)
-
-	
-	    (gl:tex-coord texture-rect.x1 texture-rect.y1)
-	    (gl:vertex quad-points.x1 quad-points.y2))))))
 
 (defgeneric cached? (object))
 (defmethod cached? ((self render-spec))
   (declare (inline cached?))
-  (if (and (slot-boundp self 'list-cache) (list-cache self) (gl:is-list (list-cache self)))
-      t nil))
+  (backend:cachedp (fp self)))
 
 (defgeneric cache (object))
 (defmethod cache ((self render-spec))
-  (with-slots (texture-rect quad-points) self
-    
-    (let ((name (gl:gen-lists 1)))
-      
-      (with-xyzs ((texture-rect 22)
-		  (quad-points 22))
-	(gl:with-new-list (name :compile)
-	  (gl:with-primitive :quads
-					;  SDL orientates top to bottom, where as GL orientates bottom to top. We flip the texture coordinates to fix that.
-	    (gl:tex-coord texture-rect.x1 texture-rect.y2)
-	    (gl:vertex quad-points.x1 quad-points.y1)
-
-	    (gl:tex-coord texture-rect.x2 texture-rect.y2)
-	    (gl:vertex quad-points.x2 quad-points.y1)
-
-	
-	    (gl:tex-coord texture-rect.x2 texture-rect.y1)
-	    (gl:vertex quad-points.x2 quad-points.y2)
-
-	
-	    (gl:tex-coord texture-rect.x1 texture-rect.y1)
-	    (gl:vertex quad-points.x1 quad-points.y2))))
-      (setf (slot-value self 'list-cache) name))))
+  (backend:cache (fp self)))
 
 (defmethod cache ((self texture))
-  (cache (slot-value self 'render-spec)))
+  (declare (inline cache))
+  (cache (render-spec self)))
 
 (defmethod cache ((self texture-list))
   (loop for texture in (sub-textures self)
@@ -177,18 +83,15 @@
        do (cache texture)))
 
 (defmethod free ((self render-spec))
-  (when (cached? self)
-      (gl:delete-lists (slot-value self 'list-cache) 1)
-      (setf (slot-value self 'list-cache) nil)))
+  "Frees the render-spec, note: is automaticly called by (free texture)."
+  (backend:free-render-spec (fp self))
+  (setf (slot-value self 'fp) nil))
 
 (defgeneric loaded? (texture))
 
 (defmethod loaded? ((self texture))
-   (declare (inline loaded?)
-	   (optimize (speed 3) (safety 1)))
-	   
-  (and (name self)
-       (%gl:is-texture (name self))))
+   (declare (inline loaded?))
+   (backend:loadedp (fp self)))
 
 (defmethod loaded? ((self texture-list))
   (declare (inline loaded?)
@@ -208,7 +111,6 @@
      finally
        (return t)))
 
-  
 
 (defun standard-bind-nearest (texture surface)
   
@@ -234,22 +136,19 @@
 (defgeneric bind (texture))
 
 (defmethod bind ((self texture))
-  (with-slots (name bind-fn render-spec) self
-    (labels ((convert-image-for-gl (surface)
-	       (let ((result (sdl:create-surface (sdl:width surface) (sdl:height surface)
-						 :bpp 32 :pixel-alpha t)))
-		 (sdl:blit-surface surface result)
-		 result)))
-      (sdl:with-surfaces  ((loaded-surface (lispbuilder-sdl-image:load-image (file self)))
-			   (converted-surface (convert-image-for-gl loaded-surface)))
-	(let ((texture (first (gl:gen-textures 1))))
-	
-	  (funcall bind-fn texture converted-surface)
-	  (setf name texture)
-
-	  
-	  (setf render-spec (make-instance 'render-spec :width (sdl:width converted-surface) :height (sdl:height converted-surface)))
-	  name)))))
+  (sdl:with-surface (surf (sdl-image:load-image (file self)))
+    (gl:enable :texture-2d)
+    (let* ((tex (gl:gen-textures 1))
+	  (result (backend:make-texture tex (backend:make-render-spec (sdl:width
+								       surf)
+								      (sdl:height
+								       surf)))))
+      (funcall (bind-fn self) tex surf)
+      (gl:disable :texture-2d)
+      result)))
+      
+    
+    
 
 (defmethod bind ((self texture-list))
   (loop for i in (sub-textures self)
@@ -267,10 +166,8 @@
 (defgeneric free (texture))
 
 (defmethod free ((self texture))
-  (with-slots (width height name render-spec) self
-    (gl:delete-textures (list name))
-    (free render-spec)
-    (setf name (setf render-spec nil))))
+  (backend:free-texture (fp self))
+  (setf (slot-value self 'fp) nil))
 
 (defmethod free ((self texture-list))
   (loop for i in (sub-textures self)
@@ -321,7 +218,7 @@
 			     collect i)))
     
 
-
+;; this is going to be tricky
 (defmacro def-texture (name path)
  `(setf (gethash ',name *texture-database*) (make-instance 'texture :file ,path)))
 

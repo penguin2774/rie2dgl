@@ -1,6 +1,71 @@
 (defpackage :backend
-  (:use :cl :cffi))
-
+  (:use :cl :cffi)
+  (:export render-spec
+	   texture
+	   sprite-cons
+	   image
+	   animation
+	   sprite-type
+	   sprite-union
+	   sprite
+	   anim-stopped
+	   anim-loop
+	   
+	   make-render-spec
+	   clone-render-spec
+	   flip-axises
+	   set-center
+	   recenter
+	   cachedp
+	   cache
+	   free-cache
+	   render-render-spec
+	   free-render-spec
+	   
+	   loadedp
+	   make-texture
+	   free-texture
+	   texture-clone-op
+	   clone-texture
+	   
+	   make-image
+	   free-image
+	   cache-image
+	   render-image
+	   set-image-center
+	   push-subimage
+	   rem-subimage
+	   pop-subimage
+	   rotate-image
+	   scale-image
+	   move-image
+	   relocate-image
+	   change-image-texture
+	   
+	   make-animation
+	   make-animation-from-list
+	   free-animation
+	   stoppedp
+	   last-framep
+	   toggle
+	   start
+	   stop
+	   reset-ticks
+	   change-frames
+	   next-frame
+	   prev-frame
+	   set-frame
+	   first-frame
+	   last-frame
+	   render-animation
+	   
+	   make-sprite
+	   free-sprite
+	   render-sprite
+	   render-sprites
+	   get-sprite-data
+	   get-sprite-image-data))
+	   
 
 (in-package :backend)
 
@@ -91,7 +156,7 @@
 (defcfun cache (:pointer render-spec)
   (spec (:pointer render-spec)))
 
-(defcfun free_cache (:pointer render-spec)
+(defcfun free-cache (:pointer render-spec)
   (spec (:pointer render-spec)))
 
 
@@ -368,9 +433,9 @@
       var)))
 
 (defun bind-textures-to-files (&rest files)
-  
   (loop for file in files
        for tex in (gl:gen-textures (length files))
+       
        collect 
        (sdl:with-surface (surf (sdl-image:load-image file))
 	 (let ((result (make-texture tex (make-render-spec (sdl:width surf)
@@ -378,6 +443,7 @@
 	   (standard-bind tex surf)
 	   (gl:disable :texture-2d)
 	   result))))
+
 (defun print-texture-quadpoints (&rest textures)
   (labels ((print-texture-quad (tex)
 	     (let* ((spec (foreign-slot-value tex 'texture 'spec))
@@ -461,68 +527,85 @@
 	)))
 
     
-    
+(defvar +image-path+ #p"/home/nathan/prj/rie2dgl/test-images/")
+
+(defun choose (&rest options)
+  (nth  (random (length options)) options))
+(defparameter +CRISSES+ 100) 
+(defparameter +TICK-TIME+ 430)
  
-(defun test ()
+(defun test-dancing-criss ()
   (sdl:with-init (sdl-cffi::sdl-init-video )
-    
-      (let ((w (sdl:window 512 512 :flags sdl:SDL-OPENGL :title-caption "Testing!"))
-	    (textures (bind-textures-to-files  "/home/nathan/prj/rie2dgl/test-images/cow-1.png"
-					       "/home/nathan/prj/rie2dgl/test-images/cow-2.png")) sprites start-p)
+    (sdl:window 1024 1024 :flags sdl:SDL-OPENGL :title-caption "Testing!")
+    (let ((dance-1 (bind-textures-to-files  (merge-pathnames "dance/dance1-1.png" +image-path+)
+					    (merge-pathnames "dance/dance1-3.png" +image-path+)))
+	  (dance-2 (bind-textures-to-files  (merge-pathnames "dance/dance2-1.png" +image-path+)
+					    (merge-pathnames "dance/dance2-2.png" +image-path+)
+					    (merge-pathnames "dance/dance2-3.png" +image-path+)
+					    (merge-pathnames "dance/dance2-2.png" +image-path+)))
+		   
+	  (dance-3 (bind-textures-to-files  (merge-pathnames "dance/dance3-1.png" +image-path+)
+					    (merge-pathnames "dance/dance3-2.png" +image-path+)
+					    (merge-pathnames "dance/dance3-3.png" +image-path+)
+					    (merge-pathnames "dance/dance3-2.png" +image-path+)))
+		     
+	  (dance-4 (bind-textures-to-files  (merge-pathnames "dance/dance4-1.png" +image-path+)
+					    (merge-pathnames "dance/dance4-2.png" +image-path+)
+					    (merge-pathnames "dance/dance4-3.png" +image-path+)
+					    (merge-pathnames "dance/dance4-2.png" +image-path+)))
+
+	  (dance-5 (bind-textures-to-files  (merge-pathnames "dance/dance5-1.png" +image-path+)
+					    (merge-pathnames "dance/dance5-2.png" +image-path+)
+					    (merge-pathnames "dance/dance5-3.png" +image-path+)
+					    (merge-pathnames "dance/dance5-4.png" +image-path+)
+					    (merge-pathnames "dance/dance5-5.png" +image-path+)
+					    (merge-pathnames "dance/dance5-4.png" +image-path+)
+					    (merge-pathnames "dance/dance5-3.png" +image-path+)
+					    (merge-pathnames "dance/dance5-2.png" +image-path+)))
+	  sprites last-time start-p)
 	    
-	(print (length textures))
 	
-	
-	(setf sprites (foreign-alloc '(:pointer sprite) :count +SPRITES+))
-	(loop for i from 0 below +SPRITES+
-	   do (setf (mem-aref sprites '(:pointer sprite) i) (make-sprite (make-animation-from-list textures (float 1/20) ANIM-LOOP (random 512.0) (random 512.0)  0.0 1.0 0.0) :animation)))
-;; 	(setf sprites (list (make-image texture 0.0 0.0 0.0 1.0 0.0)
-;; 			    (make-image texture 0.0 512.0 0.0 1.0 0.0)
-;; 			    (make-image texture 512.0 512.0 0.0 1.0 0.0)
-;; 			    (make-image texture 512.0 0.0 0.0 1.0 0.0)))
-	
-	
-	(resize-window 512 512)
-	(setup-RC)
-	
-	(setf (sdl:frame-rate) 45)
+      (setf sprites (foreign-alloc '(:pointer sprite) :count +CRISSES+))
+      (print +crisses+)
+      (loop for i from 0 below +CRISSES+
+	 do (setf (mem-aref sprites '(:pointer sprite) i) (make-sprite (make-animation-from-list (choose dance-1
+													 dance-2
+													 dance-3
+													 dance-4
+													 dance-5)
+												 (*  4 0.0508 )
+												 ANIM-STOPPED 
+												 (random 1024.0) 
+												 (random 1024.0)
+												 0.0 1.0 0.0) :animation)))
 
-	(sdl:with-events ()
-	  (:quit-event ()
-			(loop for i from 0 below +SPRITES+
-			   do (free-sprite (mem-aref sprites '(:pointer sprite) i)))
-			(loop for texture in textures
-			     do (free-texture texture))
-			   t)
-	  (:idle ()
-		 (clear-scene)
-		 
- 		 (if start-p 
-		     (loop for i from 0 below +SPRITES+
-			for sprite = (get-sprite-image-data (mem-aref sprites '(:pointer sprite) i))
-			do  
-			  
-			  (move-image  sprite (- (random 10.0) 5.0) (- (random 10.0) 5.0) 0.0)
-			  ))
-		 (render-sprites sprites +SPRITES+)
+	
+	
+      (resize-window 1024 1024)
+      (setup-RC)
+	
+      (setf (sdl:frame-rate) 45)
+      (setf last-time (get-internal-real-time))
+      (sdl:with-events ()
+	(:quit-event ()
+		     (loop for i from 0 below +CRISSES+
+			do (free-sprite (mem-aref sprites '(:pointer sprite) i)))
+		     (loop for texture in (append dance-1 dance-2 dance-3 dance-4 dance-5)
+			do (free-texture texture))
+		     t)
+	(:idle ()
+	       (clear-scene)
+	       (when start-p
+		 (let ((c-time (get-internal-real-time)))
+		   (when (>= (- c-time last-time) (/ +TICK-TIME+ 2))
+		     (loop for i from 0 below +CRISSES+
+			do (next-frame (get-sprite-data (mem-aref sprites '(:pointer sprite) i))))
+		     (setf last-time c-time))))
+	       (render-sprites sprites +CRISSES+)
+	       
 
-
-		 (gl:flush)
-		 (sdl:update-display))
-	  (:key-down-event (:key key)
+	       (gl:flush)
+	       (sdl:update-display))
+	(:key-down-event (:key key)
 			   (when (sdl:key= key :SDL-KEY-SPACE)
-			     (setf start-p (not start-p))
-			     (if start-p
-				 (loop for i from 0 below +SPRITES+
-				    for sprite = (get-sprite-data (mem-aref sprites '(:pointer sprite) i))
-				    do (set-frame sprite 0)
-				      (stop sprite)
-				      )
-				 (loop for i from 0 below +SPRITES+
-				    for sprite = (get-sprite-data (mem-aref sprites '(:pointer sprite) i))
-				    do (start sprite)
-				      )))))
-
-
-	
-	)))
+			     (setf start-p (not start-p))))))))
