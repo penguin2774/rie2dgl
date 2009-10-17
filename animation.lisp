@@ -1,167 +1,134 @@
 (in-package rie2dgl)
 
 
-(defclass animation (image)
-  ((frame-rate
-    :initarg :frame-rate
-    :type ratio
-    :accessor frame-rate)
-   (ticks
-
-    
-    :reader ticks)
-   (frames
-    :initarg :frames
-    :accessor frames)
-   (frames-left
-    :reader frames-left)
-   (flags
-    :initform 0
-    :reader flags)))
+(defclass animation ()
+  ((fp 
+    :reader fp
+    :documentation "Hold the foreign pointer.")
+   (sprite-fp
+    :reader sprite
+    :documentation "Holds the foreign pointer to the sprite structure.")))
 
 (def-flag-fn animation-flags :only-once)
 
-(defmethod initialize-instance  ((self animation) &rest initargs &key texture (frame-rate 1) flags &allow-other-keys)
+(defmethod initialize-instance  ((self animation) &rest initargs &key texture (frame-rate 1) (flags 0) x y (z 0.0) (scale 1.0) (rot 0.0) &allow-other-keys)
   (declare (ignore initargs))
-  (with-slots (frames (texture-slot texture) frames-left width height ticks (frame-rate-slot frame-rate) (flag-slot flags)) self
-    (if (not (loaded? texture))
-	(error "Frames texture ~a not loaded." texture))
-    (when (not (slot-boundp self 'texture))
-      (setf texture-slot (car (sub-textures texture)))
-      (setf frames-left (cdr (sub-textures texture)))
-      (setf frames (sub-textures texture)))
-    (if (and (> frame-rate 0) (<= frame-rate 1))
-	(setf frame-rate-slot frame-rate )
-	(error "Ticks must be in the range (0 1]."))
-   
-    (setf width (width texture-slot))
-    (setf height (height texture-slot))
-    (setf ticks :stop)
-    (setf flag-slot (if flags
-		   (apply #'animation-flags flags)
-		   0)))
-  
-  (call-next-method))
+  (let* ((anim (etypecase 
+		   (texture
+		    (backend:make-disabled-animation (fp texture) x y z scale rot))
+		 (texture-list
+		  (backend:make-animation (fp texture) (len texture) frame-rate flags x y z scale rot))))
+	 (sprite (backend:make-sprite anim :animation)))
+    (tg:finalize self (lambda ()
+			(backend:free-sprite sprite)))
+    (setf (slot-value self 'fp) anim)
+    (setf (slot-value self 'sprite-fp) sprite))
+  )
+
+(defgeneric disabled? (object))
+(defmethod disabled? ((self animation))
+  (backend:animation-disabledp self))
 
 (defgeneric stopped? (object))
 (defmethod stopped? ((self animation))
-  (eq (slot-value self 'ticks) :stop))
+  (backend:stoppedp (fp self)))
 
+(defmethod scale ((self animation) value)
+  (backend:scale-image (backend:get-image-data (fp self)) (float value)))
+
+(defmethod render ((self animation))
+  (backend:render-animation (fp self)))
+
+
+(defmethod set-center ((self animation) w-ratio h-ratio)
+  (backend:set-center (backend:get-image-data (fp self)) w-ratio h-ratio))
+
+
+
+(defmethod push-subimage ((self animation) sub-image)
+  (backend:push-subimage (backend:get-image-data (fp self)) (sprite sub-image)))
+
+
+
+(defmethod pop-subimage ((self animation))
+  (backend:pop-subimage (backend:get-image-data (fp self))))
+
+
+
+(defmethod rem-subimage ((self animation) target)
+  (backend:rem-subimage  (backend:get-image-data (fp self)) (sprite target)))
+
+
+
+
+
+(defmethod rotate ((self animation) degrees)
+  (backend:rotate-image (backend:get-image-data (fp self)) degrees))
+
+
+(defmethod move ((self animation) x y &optional (z 0.0))
+  (backend:move-image (backend:get-image-data (fp self)) x y z))
+
+ 
+
+(defmethod relocate ((self animation) x y &optional ( z 0.0))
+  (backend:relocate-image (backend:get-image-data (fp self)) x y z))
+  
+     
+(defgeneric change-frames (object texture-list &optional new-frame-rate))
+(defmethod change-frames ((self animation) texture-list &optional new-frame-rate)
+  (backend:change-frames (fp self) (fp texture-list) (len texture-list))
+  (if new-frame-rate
+      (backend:change-frame-rate (fp self) new-frame-rate)))
+
+(defmethod change-texture ((self animation) new-texture)
+  (backend:change-frames  (fp self) (fp new-texture) (len new-texture)))
+      
 
 (defgeneric toggle (object))
 (defmethod toggle ((self animation))
-  (with-slots (ticks) self
-    (if (stopped? self)
-	(start self)
-	(stop self))))
+  (backend:toggle (fp self)))
 	       
 
 (defgeneric start (object))
 (defmethod start ((self animation))
-  (with-slots (ticks) self
-    (when (slot-boundp self 'frames)
-      (if (eq ticks :done)
-	  (first-frame self))
-      (setf ticks 0))))
+  (backend:start (fp self)))
 
       
 (defgeneric stop (object))
 (defmethod stop ((self animation))
-  (with-slots (ticks) self
-    (setf ticks :stop)))
+  (backend:stop (fp self)))
 
 (defgeneric reset-ticks (object))
 (defmethod reset-ticks ((self animation))
-  (if (not (slot-boundp self 'ticks))
-      (setf (slot-value self 'ticks) :stop)
-      (with-slots (ticks) self
-	(if (typep ticks 'number)
-	    (setf ticks 0)))))
+  (backend:reset-ticks (fp self)))
 	
 
-(defgeneric change-frames (object texture-list &optional new-frame-rate))
-(defmethod change-frames ((self animation) texture-list &optional new-frame-rate)
-  (with-slots (frames-left frames texture  frame-rate ticks) self
-    (setf frames (sub-textures texture-list))
-    (setf frames-left (cdr frames))
-    (change-texture self (car frames))
-    (reset-ticks self)
-    (when new-frame-rate
-      (setf frame-rate  new-frame-rate))))
+
 	  
 
 
 (defgeneric next-frame (object))
 (defmethod next-frame ((self animation))
-  (with-slots (frames-left frames texture ticks flags) self
-    (declare (optimize (speed 3) (safety 1))
-	     
-	     (fixnum flags))
-    (reset-ticks self)
-    
-    (let ((next-frame (car frames-left)))
-      
-      (if next-frame
-	  (progn
-	    (change-texture self next-frame)
-	    (setf frames-left (cdr frames-left)))
-	  (if (test-flags #'animation-flags flags :only-once)
-	      (when (not (eq ticks :done))
-		(setf ticks :done))
-	      (progn
-		(change-texture self (car frames))
-		(setf frames-left (cdr frames))))))))
+  (backend:next-frame (fp self)))
   
 (defgeneric prev-frame (object))
 (defmethod prev-frame ((self animation))
-  (with-slots (frames-left frames texture ticks) self
-    (declare (optimize (speed 3) (safety 1)))
-    (reset-ticks self)
-    
-    (if (eq texture (first frames))
-	(progn 
-	  (change-texture self (car (last frames)))
-	  (setf frames-left nil))
-	(progn 
-	  (loop for i on frames
-	     until (eq (cadr i) texture)
-	     finally
-	       (change-texture self (car i))
-	       (setf frames-left (cdr i)))))))
+  (backend:prev-frame (fp self)))
 
 (defgeneric set-frame (object num))
 
 (defmethod set-frame ((self animation) num)
-  (with-slots (frames-left frames texture ticks) self
-    (reset-ticks self)
-    (when (>= num (length frames))
-      (error "Frame number ~a is out of range for texture list ~a." num frames))
-    (change-texture self (nth num frames))
-    (setf frames-left (nthcdr num frames))))
+  (backend:set-frame (fp self) num))
 
 (defgeneric first-frame (object))
 (defmethod first-frame ((self animation))
-  (reset-ticks self)
-  (with-slots (frames-left frames texture ticks) self
-    (change-texture self (car frames))
-    (setf frames-left (cdr frames))))
+  (backend:first-frame (fp self)))
 
 (defgeneric last-frame (object))
 (defmethod last-frame ((self animation))
-  (reset-ticks self)
-  (with-slots (frames-left frames texture ticks) self
-    (change-texture self (car (last frames)))
-    (setf frames-left nil)))
+  (backend:last-frame (fp self)))
 
 
-(defmethod render ((self animation))
-  
-  (when (typep  (slot-value self 'ticks) 'number)
-    (with-slots (frame-rate ticks) self
-      (declare (optimize (safety 1) (speed 3))
-	       ((or ratio integer) ticks frame-rate))
-      (incf ticks frame-rate)
-      (when (>= ticks 1)
-	(next-frame self))))
-  (call-next-method))
+
 

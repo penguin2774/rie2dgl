@@ -22,10 +22,11 @@ struct image * make_image(struct texture *tex, float x, float y, float z, float 
 
 void free_image(struct image *img)
 {
-  // Freeing a image frees the sub images. 
+  // Freeing image does not free subimages (cause each object is
+  // responsable for that)
   struct sprite * i;
-  while(i = pop_subimage(img)) 
-    free_sprite(i);
+  while(i = pop_subimage(img));
+    //    free_sprite(i);
   if(img->spec)
     free_render_spec(img->spec);
   free(img);

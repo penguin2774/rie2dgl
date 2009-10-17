@@ -7,14 +7,16 @@
   ((texture-dict
    :reader texture-dict)
    (current
-    :reader current)))
+    :reader current)
+    
+   ))
 
 
 
 
 (defmethod initialize-instance  ((self sprite) &rest initargs &key texture first &allow-other-keys)
-  (declare (ignore initargs))
-  (with-slots (texture-dict) self
+
+  (with-slots (texture-dict current) self  
     (if (not (loaded? texture))
 	(error "Frames texture ~a not loaded." texture))
     (if (not first)
@@ -22,12 +24,15 @@
     (if (not (typep texture 'texture-dict))
 	(error "Expected a :texture of type TEXTURE-DICT got one of type ~a" (type-of texture)))
     (setf texture-dict texture)
-    (when (not (slot-boundp self 'texture))
-      (if (listp first)
-	  (apply #'change self first)
-	  (change self first)))
-    
-    (call-next-method)))
+
+    (setf (getf initargs :texture) (apply #'reference-texture texture-dict (if (listp first)
+									       first
+									       (list first))))
+    (call-next-method)
+    (setf (slot-value self 'current) (loop for i in first
+					if (symbolp i)
+					collect i))))
+  
 
 
 (defgeneric change (object &rest new))

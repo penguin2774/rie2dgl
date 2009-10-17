@@ -27,11 +27,13 @@
 	   free-texture
 	   texture-clone-op
 	   clone-texture
+	   make-texture-array
 	   
 	   make-image
 	   free-image
 	   cache-image
 	   render-image
+	   set-scale
 	   set-image-center
 	   push-subimage
 	   rem-subimage
@@ -43,8 +45,12 @@
 	   change-image-texture
 	   
 	   make-animation
+	   make-disabled-animation
+	   animation-disabledp
 	   make-animation-from-list
 	   free-animation
+	   get-image-data
+	   change-frame-rate
 	   stoppedp
 	   last-framep
 	   toggle
@@ -150,7 +156,7 @@
   (spec (:pointer render-spec)))
 
 
-(defcfun cachedp :int
+(defcfun cachedp :boolean
   (spec (:pointer render-spec)))
 
 (defcfun cache (:pointer render-spec)
@@ -169,7 +175,7 @@
 
 ; ####################################### texture functions ##################
 
-(defcfun loadedp :int
+(defcfun loadedp :boolean
   (tex (:pointer texture)))
 
 (defcfun make-texture (:pointer texture)
@@ -211,7 +217,8 @@
   (img (:pointer image)))
 
 
-
+(defun set-scale (image scale)
+  (setf (foreign-slot-value image 'image 'scale) scale))
 
 (defcfun set-image-center (:pointer image)
   (image (:pointer image))
@@ -278,6 +285,24 @@
   (scale :float)
   (rot :float))
 
+(defcfun  make-disabled-animation (:pointer animation)
+  (texs (:pointer texture))
+  (x :float)
+  (y :float)
+  (z :float)
+  (scale :float)
+  (rot :float))
+
+(defcfun animation-disabledp (:boolean)
+  (anim (:pointer animation)))
+
+
+(defun get-image-data (anim)
+  (foreign-slot-value anim 'animation 'image))
+
+(defun change-frame-rate (anim frame-rate)
+  (setf (foreign-slot-value anim 'animation 'frame-rate) (float frame-rate)))
+
 (defun make-animation-from-list (texs frame-rate flags x y z  scale rot)
   (let ((array (foreign-alloc '(:pointer texture) :count (length texs))))
     (loop for i in texs
@@ -289,10 +314,10 @@
   (anim (:pointer animation)))
 
 
-(defcfun stoppedp :int
+(defcfun stoppedp :boolean
     (anim (:pointer animation)))
 
-(defcfun last-framep(:pointer animation)
+(defcfun last-framep :boolean
     (anim (:pointer animation)))
 
 
@@ -525,6 +550,14 @@
 
 	
 	)))
+
+(defun make-texture-array (texs)
+  (let ((result (foreign-alloc '(:pointer texture) :count (length texs))))
+    (loop for i in texs
+       for j from 0
+       do (setf (mem-aref result '(:pointer texture) j) i))
+    result))
+
 
     
 (defvar +image-path+ #p"/home/nathan/prj/rie2dgl/test-images/")

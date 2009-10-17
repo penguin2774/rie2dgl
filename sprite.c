@@ -9,7 +9,7 @@ struct sprite * make_sprite(void * data, enum sprite_type type)
   return sprite;
 }
   
-   
+
  
 
 void free_sprite(struct sprite * sprite)

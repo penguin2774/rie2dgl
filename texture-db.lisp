@@ -9,7 +9,7 @@
     :reader file
     :initarg :file
     :documentation "Holds the file that will be loaded when (bind) is called")
-   (render-spec
+   (render-spec-fp
     :reader render-spec
     :documentation "Holds the renderspec foreign pointer.")
    (bind-fn
@@ -23,7 +23,10 @@
   ((sub-textures
     :reader sub-textures
     :initarg :sub-textures
-    :documentation "A foreign array of textures")
+    :documentation "A foreign array of textures filenames")
+   (fp
+    :reader fp
+    :documentation "An array of sub-textures for the animation structure")
    (length
     :reader len
     :initarg :length
@@ -138,21 +141,24 @@
 (defmethod bind ((self texture))
   (sdl:with-surface (surf (sdl-image:load-image (file self)))
     (gl:enable :texture-2d)
-    (let* ((tex (gl:gen-textures 1))
+    (let* ((tex (first (gl:gen-textures 1)))
 	  (result (backend:make-texture tex (backend:make-render-spec (sdl:width
 								       surf)
 								      (sdl:height
 								       surf)))))
       (funcall (bind-fn self) tex surf)
       (gl:disable :texture-2d)
-      result)))
+      (setf (slot-value self 'fp) result)
+      (setf (slot-value self 'render-spec-fp) (cffi:foreign-slot-value result 'backend::texture 'backend::spec))
+      self)))
       
     
     
 
 (defmethod bind ((self texture-list))
-  (loop for i in (sub-textures self)
-     collect (bind i)))
+  (setf (slot-value self 'fp)
+	(backend:make-texture-array (loop for i in (sub-textures self)
+				       collect (fp (bind i))))))
 
 (defmethod bind ((self texture-dict))
   (loop for i being the hash-values in (sub-textures self)
@@ -171,7 +177,8 @@
 
 (defmethod free ((self texture-list))
   (loop for i in (sub-textures self)
-       do (free i)))
+       do (free i))
+  (cffi-sys:foreign-free (fp self)))
 
 (defmethod free ((self texture-dict))
   (loop for i being the hash-values in (sub-textures self)
@@ -220,7 +227,16 @@
 
 ;; this is going to be tricky
 (defmacro def-texture (name path)
- `(setf (gethash ',name *texture-database*) (make-instance 'texture :file ,path)))
+  (typecase path
+    ((or pathname string)
+     `(setf (gethash ',name *texture-database*) (make-instance 'texture :file ,path)))
+    (t
+     `(typecase ,path
+	((or pathname string)
+	 (setf (gethash ',name *texture-database*) (make-instance 'texture :file ,path)))
+	(texture
+	 (setf (gethash ',name *texture-database*) ,path))))))
+					    
 
 (defmacro def-texture-list (name path &key (start 0) end bind-fn)
   (let ((start-g (gensym "start-"))
@@ -234,9 +250,11 @@
        (setf (gethash ',name *texture-database*)
 	     
 	     (make-instance 'texture-list :sub-textures (loop for i from ,start-g to ,end-g
+							   
 							   collect (make-instance 'texture :file (format nil ,path-g i)
 										  :bind-fn (or ,bind-fn-g #'standard-bind)))
-			    :length (- ,end-g ,start-g))))))
+			    :length (1+ (- ,end-g ,start-g))))
+       )))
 
 
 	      

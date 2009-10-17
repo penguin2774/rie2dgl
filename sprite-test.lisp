@@ -117,45 +117,7 @@
 ;; 	 (ships (loop for i from 0 repeat 10
 ;; 			collect (make-instance 'image :texture (reft dwarf-frigate) :location (list (+ 100.0 (random 400))(+ 100.0 (random 400)) ) :sub-images (list (make-instance 'image :texture (reft dwarf-turret) :location '(0.0 43.0))))))
 
-(defun make-sprite-fn (texture &key (position (list 0.0 0.0 0.0)) (scale 1.0) (rotation 0.0))
-  (declare    (single-float scale rotation))
-  (let ((texture texture)
-	(location (cffi:foreign-alloc :float :initial-contents position :count 3))
-	(scale scale)
-	(rotation rotation))
-    (declare (single-float scale rotation)
-	     (texture texture)
-	     )
-    (labels ((lambda-render ()
-	       (declare (optimize (speed 3) (safety 1)))
-	          (gl:enable :blend :texture-2d)
-		  (gl:blend-func :src-alpha :one-minus-src-alpha)
-		  
-		  (gl:with-pushed-matrix
-		    (%gl:translate-f (cffi:mem-aref location :float 0) (cffi:mem-aref location :float 1) (cffi:mem-aref location :float 2))
-		    (if (not (zerop rotation)) 
-			(gl:rotate rotation 0.0 0.0 1.0))
-		    (if (not (equal scale 1.0))
-			(gl:scale scale scale 1.0))
-		    
-		    (gl:bind-texture :texture-2d (name texture))
-		    (render (render-spec texture)))
-		  (gl:disable :blend :texture-2d)))
-    (lambda (op &rest args)
-      (declare (optimize (speed 3) (safety 1))
-	       (keyword op))
-      (ecase op
-	(:render
-	 (lambda-render))
-	(:scale 
-	 (setf scale (first args)))
-	(:position
-	 (cffi-sys:foreign-free location)
-	 (setf location (cffi:foreign-alloc :float :initial-contents args :count 3))
-	 )
-	
-	(:rotation
-	 (setf rotation (first args))))))))
+
   
 
 (defun run ()
@@ -180,7 +142,7 @@
 	       ;; (ships (loop for i from 0 repeat 10
 	       ;; 			collect (make-instance 'image :texture (reft dwarf-frigate) :location (list (+ 100.0 (random 400))(+ 100.0 (random 400)) ) :sub-images (list (make-instance 'image :texture (reft dwarf-turret) :location '(0.0 43.0))))))
  	       (aliens (loop for i from 0 repeat 500
-			  collect (make-instance 'sprite :texture (reft alien) :first :stare :location (list (random 512) (random 512)) :frame-rate 1/8 ))))
+			  collect (make-instance 'sprite :texture (reft alien) :first :stare :x (random 512.0) :y (random 512.0) :frame-rate 1/8 ))))
 ;;	       (test-ls (loop repeat 500
 ;;			     collect (make-sprite-fn (reft alien :stare) :position (list (random 512.0) (random 512.0) 0.0)))))
 ;; 	  (loop for i in aliens
@@ -190,7 +152,7 @@
 	       
 	  (setf (sdl:frame-rate) 45)
 	  ;; Start processing buffered OpenGL routines.
-	  (cache (reft alien))
+;	  (cache (reft alien))
 	  ;(print (current (first aliens)))
 ;;	  (setf (scale alien) 5.0)
 	   

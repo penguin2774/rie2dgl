@@ -131,8 +131,10 @@ struct image * change_image_texture(struct image * image, struct texture * textu
     
 
 // #################################### Animation Fuctions
-
+  
 struct animation * make_animation(struct texture ** texs, unsigned int count, float frame_rate, long flags, float x, float y, float z, float scale, float rot);
+
+struct animation * make_still_animation(struct texture * texs, unsigned int count, float frame_rate, long flags, float x, float y, float z, float scale, float rot);
 
 void free_animation(struct animation * anim);
 

@@ -121,14 +121,14 @@
 	       ;; (ships (loop for i from 0 repeat 10
 	       ;; 			collect (make-instance 'image :texture (reft dwarf-frigate) :location (list (+ 100.0 (random 400))(+ 100.0 (random 400)) ) :sub-images (list (make-instance 'image :texture (reft dwarf-turret) :location '(0.0 43.0))))))
  	       (aliens (loop for i from 0 repeat 500
- 			  collect (make-instance 'animation :texture (reft alien-look) :location (list (random 512) (random 512)) :frame-rate 1/8 ))))
+ 			  collect (make-instance 'animation :texture (reft alien-look) :x (random 512.0) :y (random 512.0) :frame-rate 1/8 ))))
  	  (loop for i in aliens
  	     do (stop i)
  	     (set-frame i 1))
 	
 	  (setf (sdl:frame-rate) 45)
-	  ;; Start processing buffered OpenGL routines.
-	  (cache (reft alien-look))
+
+
 	  
 ;;	  (setf (scale alien) 5.0)
 	   
@@ -155,9 +155,9 @@
 			if (>= 0 count)
 			do (if (stopped? alien)
 			       (start alien))
-			(rotate alien dance)
+			  ;(rotate alien (float dance))
 			else
-			do (setf (scale alien) bounce)
+			do (scale alien bounce)
 
 			do(render alien)
 			finally
