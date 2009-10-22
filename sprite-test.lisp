@@ -142,7 +142,7 @@
 	       ;; (ships (loop for i from 0 repeat 10
 	       ;; 			collect (make-instance 'image :texture (reft dwarf-frigate) :location (list (+ 100.0 (random 400))(+ 100.0 (random 400)) ) :sub-images (list (make-instance 'image :texture (reft dwarf-turret) :location '(0.0 43.0))))))
  	       (aliens (loop for i from 0 repeat 500
-			  collect (make-instance 'sprite :texture (reft alien) :first :stare :x (random 512.0) :y (random 512.0) :frame-rate 1/8 ))))
+			  collect (make-instance 'sprite :texture (reft alien) :first :stare :x (random 512.0) :y (random 512.0) :frame-rate 1 ))))
 ;;	       (test-ls (loop repeat 500
 ;;			     collect (make-sprite-fn (reft alien :stare) :position (list (random 512.0) (random 512.0) 0.0)))))
 ;; 	  (loop for i in aliens
@@ -155,8 +155,7 @@
 ;	  (cache (reft alien))
 	  ;(print (current (first aliens)))
 ;;	  (setf (scale alien) 5.0)
-	   
-	
+
 	  (sdl:with-events ()
 	    (:quit-event () t)
 	    (:idle ()
@@ -171,18 +170,19 @@
 			 ;; (start alien)
 			 )
 		     (render-scene w)
-		      
+
 		     (loop for alien in aliens
-;; 			with bounce = (funcall bounce-fn)
+ 			with bounce = (funcall bounce-fn)
 			
-;; 			if (and (eq (first (current alien)) :look) (>= 0 count))
-;; 			do (change alien :walk :right)
-;; 			if (>= 0 count)
-;; 			do (if (stopped? alien)
-;; 			       (start alien))
-;; 			(move alien 1.0 (- 1.0 (random 2.0)))
-;; 			else
-;; 			do (setf (scale alien) bounce)
+ 			if (and (eq (first (current alien)) :stare) (>= 0 count))
+ 			do (change alien :walk :right)
+			  
+ 			if (>= 0 count)
+ 			do (if (stopped? alien)
+ 			       (start alien))
+ 			(move alien 1.0 (- 1.0 (random 2.0)))
+ 			else
+ 			do (scale alien bounce)
 
 			do (render alien)
 			finally

@@ -231,3 +231,11 @@ inline void free_texture(struct texture * tex)
   free(tex);
 }
 
+
+inline void free_texture_clone(struct texture * tex)
+{
+  free_render_spec(tex->spec);
+  GLuint texture[1];
+  free(tex);
+}
+

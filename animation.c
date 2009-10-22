@@ -1,16 +1,16 @@
 #include "backend.h"
 
 
-struct animation * make_disabled_animation(struct texture * texs, float x, float y, float z, float scale, float rot)
+struct animation * make_disabled_animation(struct texture * texs, float frame_rate, long flags,  float x, float y, float z, float scale, float rot)
 {
   struct animation * result = malloc(sizeof(struct animation));
   result->image = make_image(texs, x, y, z, scale, rot);
   result->ticks = 0.0;
   result->frames = 0;
   result->frame_count = 0;
-  result->frame_rate = 1;
+  result->frame_rate = frame_rate;
   result->current_frame = 0;
-  result->flags = 0;
+  result->flags = flags;
   return result;
 }
 
@@ -40,6 +40,8 @@ inline int animation_disabledp(struct animation *ptr)
 {
   return(!(ptr->frames)); // animation is disabled if there are no frames.
 }
+
+
 
 inline int stoppedp(struct animation *anim)
 {
@@ -81,21 +83,30 @@ struct animation  * change_frames(struct animation * anim, struct texture ** tex
   return anim;
 }
 
+struct animation * change_frames_disable(struct animation * anim, struct texture * tex)
+{
+  disable_animation(anim);
+  change_image_texture(anim->image, tex);
+  return anim;
+}
+
 struct animation * disable_animation(struct animation *anim)
 {
   anim->frames = 0;
   anim->frame_count = 0;
   anim->ticks = 0;
-  anim->flags = 0;
+  //  anim->flags = 0;
   return anim;
 }
 
 struct animation  * next_frame(struct animation * anim)
 {
+
   if(!animation_disabledp(anim)) {
       if(++anim->current_frame >= anim->frame_count)
 	anim->current_frame = 0;
       reset_ticks(anim);
+
       change_image_texture(anim->image, anim->frames[anim->current_frame]);
     }
   return anim;
@@ -159,17 +170,16 @@ inline int last_framep(struct animation * anim)
 
 void render_animation(struct animation * anim)
 {
-  if(animation_disabledp(anim) && !(anim->flags & ANIM_STOPPED)) {
+  if(!animation_disabledp(anim) && !(anim->flags & ANIM_STOPPED)) {
     
     anim->ticks += anim->frame_rate;
-    
+
     if(anim->ticks >= 1) {
       
       anim->ticks = 0;
       next_frame(anim);
       if(anim->current_frame + 1 >= anim->frame_count && !(anim->flags & ANIM_LOOP))
 	stop(anim);
-      
     }
   
   }

@@ -23,15 +23,16 @@
 	(error "Need a texture keyword for sprite ~a." self))
     (if (not (typep texture 'texture-dict))
 	(error "Expected a :texture of type TEXTURE-DICT got one of type ~a" (type-of texture)))
-    (setf texture-dict texture)
-
-    (setf (getf initargs :texture) (apply #'reference-texture texture-dict (if (listp first)
-									       first
-									       (list first))))
-    (call-next-method)
+    (let ((first (if (listp first)
+		     first
+		     (list first))))
+      (setf texture-dict texture)
+      
+      (setf (getf initargs :texture) (apply #'reference-texture texture-dict first))
+      (call-next-method)
     (setf (slot-value self 'current) (loop for i in first
 					if (symbolp i)
-					collect i))))
+					collect i)))))
   
 
 

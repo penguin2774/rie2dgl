@@ -13,21 +13,20 @@
 
 (defmethod initialize-instance  ((self animation) &rest initargs &key texture (frame-rate 1) (flags 0) x y (z 0.0) (scale 1.0) (rot 0.0) &allow-other-keys)
   (declare (ignore initargs))
-  (let* ((anim (etypecase 
-		   (texture
-		    (backend:make-disabled-animation (fp texture) x y z scale rot))
+  (let* ((anim (etypecase texture
+		 (texture
+		  (backend:make-disabled-animation (fp texture) (float frame-rate) flags x y z scale rot))
 		 (texture-list
-		  (backend:make-animation (fp texture) (len texture) frame-rate flags x y z scale rot))))
+		  (backend:make-animation (fp texture) (len texture) (float frame-rate) flags x y z scale rot))))
 	 (sprite (backend:make-sprite anim :animation)))
     (tg:finalize self (lambda ()
 			(backend:free-sprite sprite)))
     (setf (slot-value self 'fp) anim)
-    (setf (slot-value self 'sprite-fp) sprite))
-  )
+    (setf (slot-value self 'sprite-fp) sprite)))
 
 (defgeneric disabled? (object))
 (defmethod disabled? ((self animation))
-  (backend:animation-disabledp self))
+  (backend:animation-disabledp (fp self)))
 
 (defgeneric stopped? (object))
 (defmethod stopped? ((self animation))
@@ -75,14 +74,22 @@
   (backend:relocate-image (backend:get-image-data (fp self)) x y z))
   
      
-(defgeneric change-frames (object texture-list &optional new-frame-rate))
-(defmethod change-frames ((self animation) texture-list &optional new-frame-rate)
-  (backend:change-frames (fp self) (fp texture-list) (len texture-list))
+(defgeneric change-frames (object texture-list &optional new-frame-rate new-flags))
+(defmethod change-frames ((self animation) texture-list &optional new-frame-rate new-flags)
+
+  (change-texture self texture-list)
   (if new-frame-rate
-      (backend:change-frame-rate (fp self) new-frame-rate)))
+      (backend:change-frame-rate (fp self) new-frame-rate))
+  (if new-flags
+      (backend:change-flags (fp self) new-flags)))
 
 (defmethod change-texture ((self animation) new-texture)
-  (backend:change-frames  (fp self) (fp new-texture) (len new-texture)))
+  (etypecase new-texture 
+    (texture
+     (backend:change-frames-disable (fp self) (fp new-texture)))
+    (texture-list
+
+     (backend:change-frames  (fp self) (fp new-texture) (len new-texture)))))
       
 
 (defgeneric toggle (object))

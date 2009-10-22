@@ -25,6 +25,7 @@
 	   loadedp
 	   make-texture
 	   free-texture
+	   free-texture-clone
 	   texture-clone-op
 	   clone-texture
 	   make-texture-array
@@ -43,7 +44,7 @@
 	   move-image
 	   relocate-image
 	   change-image-texture
-	   
+
 	   make-animation
 	   make-disabled-animation
 	   animation-disabledp
@@ -51,6 +52,7 @@
 	   free-animation
 	   get-image-data
 	   change-frame-rate
+	   change-flags
 	   stoppedp
 	   last-framep
 	   toggle
@@ -58,6 +60,8 @@
 	   stop
 	   reset-ticks
 	   change-frames
+	   change-frames-disable
+	   disable-animation
 	   next-frame
 	   prev-frame
 	   set-frame
@@ -185,6 +189,10 @@
 (defcfun free-texture :void
   (tex (:pointer texture)))
 
+(defcfun free-texture-clone :void
+  (tex (:pointer texture)))
+
+
 (defcenum texture-clone-op
   :noop
   :flip-h
@@ -287,6 +295,8 @@
 
 (defcfun  make-disabled-animation (:pointer animation)
   (texs (:pointer texture))
+  (frame-rate :float)
+  (flags :long)
   (x :float)
   (y :float)
   (z :float)
@@ -302,6 +312,11 @@
 
 (defun change-frame-rate (anim frame-rate)
   (setf (foreign-slot-value anim 'animation 'frame-rate) (float frame-rate)))
+
+(defun change-flags (anim flags)
+  (declare ((unsigned-byte 32) flags))
+  (setf (foreign-slot-value anim 'animation 'flags) flags))
+
 
 (defun make-animation-from-list (texs frame-rate flags x y z  scale rot)
   (let ((array (foreign-alloc '(:pointer texture) :count (length texs))))
@@ -338,10 +353,16 @@
 
 
 (defcfun change-frames  (:pointer animation)
-    (anim (:pointer animation))
-    (texs (:pointer texture))
-    (count :int))
+  (anim (:pointer animation))
+  (texs (:pointer :pointer))
+  (count :int))
 
+(defcfun change-frames-disable (:pointer animation)
+  (anim (:pointer animation))
+  (tex (:pointer texture)))
+
+(defcfun disable-animation (:pointer animation)
+  (anim (:pointer animation)))
 
 (defcfun next-frame  (:pointer animation)
     (anim (:pointer animation)))

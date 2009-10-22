@@ -1,14 +1,23 @@
 (in-package :rie2dgl)
 
-
 (defclass texture ()
   ((fp
     :reader fp
     :documentation "Holds the foreign pointer to the texture structure")
-   (file
-    :reader file
-    :initarg :file
-    :documentation "Holds the file that will be loaded when (bind) is called")
+   (data
+    :reader data
+    :initarg :data
+    :documentation "Holds the file that will be loaded when (bind) is called, or hold a texture that this texture acts as a proxy for.")
+   (bind-type
+    :reader bind-type
+    :initarg :bind-type
+    :initform :file
+    :documentation "Holds a keyword that defines the type of bind that should be preformed, options are:
+:file - loads a file as texture
+:proxy - when bound, simply sets fp to another textures fp, also doesn't free anything when freed.
+:flip-h - takes texture in data and clones it with a horizontaly flipped render-spec.
+:flip-v - same as above except vertical flip.
+:flip-hv - also same except flips both axises.")
    (render-spec-fp
     :reader render-spec
     :documentation "Holds the renderspec foreign pointer.")
@@ -87,8 +96,11 @@
 
 (defmethod free ((self render-spec))
   "Frees the render-spec, note: is automaticly called by (free texture)."
-  (backend:free-render-spec (fp self))
-  (setf (slot-value self 'fp) nil))
+  (when (fp self)
+    (backend:free-render-spec (fp self))
+    (setf (slot-value self 'fp) nil)))
+    
+  
 
 (defgeneric loaded? (texture))
 
@@ -139,20 +151,35 @@
 (defgeneric bind (texture))
 
 (defmethod bind ((self texture))
-  (sdl:with-surface (surf (sdl-image:load-image (file self)))
-    (gl:enable :texture-2d)
-    (let* ((tex (first (gl:gen-textures 1)))
-	  (result (backend:make-texture tex (backend:make-render-spec (sdl:width
-								       surf)
-								      (sdl:height
-								       surf)))))
-      (funcall (bind-fn self) tex surf)
-      (gl:disable :texture-2d)
-      (setf (slot-value self 'fp) result)
-      (setf (slot-value self 'render-spec-fp) (cffi:foreign-slot-value result 'backend::texture 'backend::spec))
-      self)))
-      
-    
+
+  (ecase (bind-type self)
+    (:file
+     (assert (probe-file (data self)))
+     (sdl:with-surface (surf (sdl-image:load-image (data self)))
+       (gl:enable :texture-2d)
+       (let* ((tex (first (gl:gen-textures 1)))
+	      (result (backend:make-texture tex (backend:make-render-spec (sdl:width
+									   surf)
+									  (sdl:height
+									       surf)))))
+	 (funcall (bind-fn self) tex surf)
+	 (gl:disable :texture-2d)
+	 (setf (slot-value self 'fp) result)
+	 (setf (slot-value self 'render-spec-fp) (cffi:foreign-slot-value result 'backend::texture 'backend::spec)))))
+    (:proxy
+
+     (unless (loaded? (data self))
+       (bind (data self)))
+     (setf (slot-value self 'fp) (fp (data self)))
+     (setf (slot-value self 'render-spec-fp) (render-spec (data self))))
+    ((or :flip-h :flip-v :flip-hv)
+
+		 (unless (loaded? (data self))
+		   (bind (data self)))
+		 (let ((result (backend:clone-texture (fp (data self)) (bind-type self))))
+		   (setf (slot-value self 'fp) result)
+		   (setf (slot-value self 'render-spec-fp) (setf (slot-value self 'render-spec-fp) (cffi:foreign-slot-value result 'backend::texture 'backend::spec))))))
+    self)
     
 
 (defmethod bind ((self texture-list))
@@ -172,8 +199,16 @@
 (defgeneric free (texture))
 
 (defmethod free ((self texture))
-  (backend:free-texture (fp self))
-  (setf (slot-value self 'fp) nil))
+  (when (fp self)
+    (ecase (bind-type self)
+      (:file
+       
+       (backend:free-texture (fp self)))
+      ((or :flip-h :flip-v :flip-vh) ; clone
+       (backend:free-texture-clone (fp self)))
+      (:proxy
+       nil))
+    (setf (slot-value self 'fp) nil)))
 
 (defmethod free ((self texture-list))
   (loop for i in (sub-textures self)
@@ -229,16 +264,17 @@
 (defmacro def-texture (name path)
   (typecase path
     ((or pathname string)
-     `(setf (gethash ',name *texture-database*) (make-instance 'texture :file ,path)))
+     `(setf (gethash ',name *texture-database*) (make-instance 'texture :data ,path)))
     (t
      `(typecase ,path
 	((or pathname string)
-	 (setf (gethash ',name *texture-database*) (make-instance 'texture :file ,path)))
+	 (setf (gethash ',name *texture-database*) (make-instance 'texture :data ,path)))
 	(texture
 	 (setf (gethash ',name *texture-database*) ,path))))))
 					    
 
 (defmacro def-texture-list (name path &key (start 0) end bind-fn)
+
   (let ((start-g (gensym "start-"))
 	(end-g (gensym "end-"))
 	(bind-fn-g (gensym "bind-fn-"))
@@ -251,7 +287,7 @@
 	     
 	     (make-instance 'texture-list :sub-textures (loop for i from ,start-g to ,end-g
 							   
-							   collect (make-instance 'texture :file (format nil ,path-g i)
+							   collect (make-instance 'texture :data (format nil ,path-g i)
 										  :bind-fn (or ,bind-fn-g #'standard-bind)))
 			    :length (1+ (- ,end-g ,start-g))))
        )))
@@ -259,12 +295,32 @@
 
 	      
 
-(defun make-textures (path &key start end bind-fn)
-  (if (or start end)
-      (make-instance 'texture-list :sub-textures (loop for i from (or start 0) to end
-						      collect (make-instance 'texture :file (format nil path i) :bind-fn (or bind-fn #'standard-bind)))
-		     :length (- end (or start 0)))
-      (make-instance 'texture :file path :bind-fn (or bind-fn #'standard-bind))))
+(defun make-textures (path &key (start 0) end bind-fn (special :normal) (bind-type :file))
+  (flet ((make-textures ()
+	   (loop for i from start to end
+			    collect (make-instance 'texture 
+						   :data (etypecase path
+							   ((or pathname string)
+							    (format nil path i))
+							   (texture-list
+							    (if (= (1+ (- end start)) (len path))
+								(cffi:mem-aref (fp path) '(:pointer backend::texture) i))))
+						   :bind-fn (or bind-fn #'standard-bind) :bind-type bind-type))))
+	 
+  (ecase special
+    (:up-and-down
+     (if (or start end)
+	 (let* ((firsts (make-textures))
+		 (all (append firsts (butlast (cdr (reverse firsts))))))
+		
+	 (make-instance 'texture-list :sub-textures all
+			:length (length all)))
+	 (error ":up-to-down in def-texture-dict must define a texture-list (have atleast END).")))
+    (:normal
+     (if (or start end)
+      (make-instance 'texture-list :sub-textures (make-textures)
+		     :length (1+ (- end (or start 0))))
+      (make-instance 'texture :data path :bind-fn (or bind-fn #'standard-bind)))))))
 
 (defmacro def-texture-dict (name &rest spec)
  

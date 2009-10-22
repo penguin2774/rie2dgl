@@ -152,6 +152,10 @@ inline struct animation  * reset_ticks(struct animation * anim);
 
 struct animation  * change_frames(struct animation * anim, struct texture ** texs, int count);
 
+struct animation  * change_frames_disable(struct animation * anim, struct texture * texs);
+
+struct animation  * disable_animation(struct animation * anim);
+
 struct animation  * next_frame(struct animation * anim);
 
 struct animation  * prev_frame(struct animation * anim);
