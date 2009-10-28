@@ -15,9 +15,9 @@
   (declare (ignore initargs))
   (let* ((anim (etypecase texture
 		 (texture
-		  (backend:make-disabled-animation (fp texture) (float frame-rate) flags x y z scale rot))
+		  (backend:make-disabled-animation (fp texture) (float frame-rate) flags (float x) (float y) (float z) (float scale) (float rot)))
 		 (texture-list
-		  (backend:make-animation (fp texture) (len texture) (float frame-rate) flags x y z scale rot))))
+		  (backend:make-animation (fp texture) (len texture) (float frame-rate) flags (float x) (float y) (float z) (float scale) (float rot)))))
 	 (sprite (backend:make-sprite anim :animation)))
     (tg:finalize self (lambda ()
 			(backend:free-sprite sprite)))
@@ -35,7 +35,17 @@
 (defmethod scale ((self animation) value)
   (backend:scale-image (backend:get-image-data (fp self)) (float value)))
 
+
+(defmethod outside-bounds? ((self animation) x1 y1 x2 y2)
+  (backend:rect2d-outside-test (backend:get-image-data (fp self)) x1 y1 x2 y2))
+
+(def-accessor-methods animation
+    ticks frame-rate current-frame)
+
+  
+
 (defmethod render ((self animation))
+  
   (backend:render-animation (fp self)))
 
 
@@ -73,15 +83,29 @@
 (defmethod relocate ((self animation) x y &optional ( z 0.0))
   (backend:relocate-image (backend:get-image-data (fp self)) x y z))
   
+
+(defgeneric x (object))
+(defmethod x ((self animation))
+  (cffi:mem-aref (backend:image-get-loc (backend:get-image-data (fp self))) :float 0))
+
+(defgeneric y (object))
+(defmethod y ((self animation))
+  (cffi:mem-aref (backend:image-get-loc (backend:get-image-data (fp self))) :float 1))
+
+(defgeneric z (object))
+(defmethod z ((self animation))
+  (cffi:mem-aref (backend:image-get-loc (backend:get-image-data (fp self))) :float 2))
+
+
      
 (defgeneric change-frames (object texture-list &optional new-frame-rate new-flags))
 (defmethod change-frames ((self animation) texture-list &optional new-frame-rate new-flags)
 
   (change-texture self texture-list)
   (if new-frame-rate
-      (backend:change-frame-rate (fp self) new-frame-rate))
+      (backend:animation-change-frame-rate (fp self) new-frame-rate))
   (if new-flags
-      (backend:change-flags (fp self) new-flags)))
+      (backend:animation-change-flags (fp self) new-flags)))
 
 (defmethod change-texture ((self animation) new-texture)
   (etypecase new-texture 

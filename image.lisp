@@ -33,7 +33,6 @@
   (backend:scale-image self value))
 
 
-
 (defmethod cache ((self image))
   "Calls CACHE on RENDER-SPEC if it exists otherwise on TEXTURE"
   (backend:cache-image (fp self)))
@@ -71,6 +70,19 @@
 (defmethod move ((self image) x y &optional (z 0.0))
   (backend:move-image (fp self) x y z))
 
+(defgeneric x (object))
+(defmethod x ((self image))
+  (cffi:mem-aref (backend:image-get-loc (fp self)) :float 0))
+
+(defgeneric y (object))
+(defmethod y ((self image))
+  (cffi:mem-aref (backend:image-get-loc (fp self)) :float 1))
+
+(defgeneric z (object))
+(defmethod z ((self image))
+  (cffi:mem-aref (backend:image-get-loc (fp self)) :float 2))
+
+
  
 (defgeneric relocate (object x y &optional z))
 (defmethod relocate ((self image) x y &optional ( z 0.0))
@@ -80,4 +92,9 @@
 (defgeneric change-texture (object new-texture))
 (defmethod change-texture ((self image) new-texture)
   (backend:change-image-texture (fp self) (fp new-texture)))
+
+(defgeneric outside-bounds? (object x1 y1 x2 y2))
+(defmethod outside-bounds? ((self image) x1 y1 x2 y2)
+  (backend:rect2d-outside-test (fp self) x1 y1 x2 y2))
       
+(def-reader-methods image loc rot w h)

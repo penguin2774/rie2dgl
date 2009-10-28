@@ -23,7 +23,10 @@
    :free
    :reference-texture
    :texture
+   :texture-clone
+   :texture-proxy
    :texture-list
+   :back-and-forth
    :texture-dict
    :reft
    :def-texture
@@ -40,7 +43,7 @@
    :rotate
    :move
    :relocate
-   
+   :outside-bounds?
    :texture-rect
    :location
    :set-center
@@ -59,7 +62,10 @@
    :toggle
    :start
    :stop
+   :ticks
+   :frame-rate
    :change-frames
+   :current-frame
    :next-frame
    :prev-frame
    :set-frame

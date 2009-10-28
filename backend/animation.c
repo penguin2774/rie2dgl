@@ -11,6 +11,7 @@ struct animation * make_disabled_animation(struct texture * texs, float frame_ra
   result->frame_rate = frame_rate;
   result->current_frame = 0;
   result->flags = flags;
+  result->flip_callback = 0;
   return result;
 }
 
@@ -26,6 +27,7 @@ struct animation * make_animation(struct texture ** texs, unsigned int count, fl
   result->frame_rate = frame_rate;
   result->current_frame = 0;
   result->flags = flags;
+  result->flip_callback = 0;
   return result;
 }
 
@@ -177,6 +179,8 @@ void render_animation(struct animation * anim)
     if(anim->ticks >= 1) {
       
       anim->ticks = 0;
+      if(anim->flip_callback)
+	(*anim->flip_callback)(anim);
       next_frame(anim);
       if(anim->current_frame + 1 >= anim->frame_count && !(anim->flags & ANIM_LOOP))
 	stop(anim);

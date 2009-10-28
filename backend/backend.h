@@ -58,6 +58,7 @@ struct animation {
   int frame_count;
   int current_frame;
   int flags;
+  void (* flip_callback)(struct animation *);
 };
 
 
@@ -128,6 +129,10 @@ inline struct image * relocate_image(struct image * image, float x, float y, flo
 
 
 struct image * change_image_texture(struct image * image, struct texture * texture);
+
+struct render_spec * get_render_spec(struct image * image);
+
+int rect2d_outside_test(struct image *image, float x1, float y1, float x2, float y2);
     
 
 // #################################### Animation Fuctions

@@ -170,3 +170,32 @@ struct image * change_image_texture(struct image * image, struct texture * textu
   image->tex = texture;
   return image;
 }
+
+struct render_spec * get_render_spec(struct image * image)
+{
+  if(image->spec)
+    return(image->spec);
+  return(image->tex->spec);
+}
+
+int rect2d_outside_test(struct image *image, float bx1, float by1, float bx2, float by2)
+{
+  int result = 0;
+  struct render_spec * spec = get_render_spec(image);
+  float x1 = spec->quad_points[0] + image->loc[0];
+  float y1 = spec->quad_points[1] + image->loc[1];
+  float x2 = spec->quad_points[2] + image->loc[0];
+  float y2 = spec->quad_points[3] + image->loc[1];
+
+  if(x1 <= bx1)
+    result |= 1;
+  else if (x2 >= bx2)
+    result |= 2;
+  if(y1 <= by1)
+    result |= 4;
+  else if (y2 >= by2)
+    result |= 8;
+
+  return(result);
+}
+      

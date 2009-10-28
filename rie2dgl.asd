@@ -14,13 +14,13 @@
 
   :components
   ((:file "package")
-   (:file "backend")
+   (:file "utility")
+   (:module "backend" :components ((:file "backend")))
    (:file "flags")
    (:file "math3d")
    (:file "texture-db")
    (:file "image" )
    (:file "animation")
    (:file "sprite")
-   (:file "image-test")
-   (:file "sprite-test"))
+   (:module "tests" :components ((:file "sprite"))))
   :serial t)

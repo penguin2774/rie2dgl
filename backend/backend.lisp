@@ -10,18 +10,23 @@
 	   sprite
 	   anim-stopped
 	   anim-loop
-	   
-	   make-render-spec
+
+	   make-render-spec   
 	   clone-render-spec
 	   flip-axises
 	   set-center
 	   recenter
 	   cachedp
-	   cache
+	   cache	   
 	   free-cache
 	   render-render-spec
 	   free-render-spec
-	   
+	   render-spec-get-texture-rect
+	   render-spec-get-quad-points
+	   render-spec-get-center-ratio
+	   render-spec-get-w
+	   render-spec-get-h
+	  
 	   loadedp
 	   make-texture
 	   free-texture
@@ -29,6 +34,7 @@
 	   texture-clone-op
 	   clone-texture
 	   make-texture-array
+	   texture-get-name
 	   
 	   make-image
 	   free-image
@@ -43,7 +49,13 @@
 	   scale-image
 	   move-image
 	   relocate-image
+	   rect2d-outside-test
 	   change-image-texture
+	   image-get-loc
+	   image-get-scale
+	   image-get-rot
+	   image-get-w
+	   image-get-h
 
 	   make-animation
 	   make-disabled-animation
@@ -68,6 +80,14 @@
 	   first-frame
 	   last-frame
 	   render-animation
+	   animation-get-ticks
+	   animation-change-ticks
+	   animation-get-frame-rate
+	   animation-change-frame-rate
+	   animation-get-frame-count
+	   animation-get-current-frame
+	   animation-change-flags
+	   animation-get-flags
 	   
 	   make-sprite
 	   free-sprite
@@ -120,7 +140,8 @@
   (frame-rate :float)
   (frame-count :int)
   (current-frame :int)
-  (flags :int))
+  (flags :int)
+  (flip-callback :pointer))
   
 (defcenum sprite-type
   :image
@@ -138,6 +159,18 @@
 
 (defconstant anim-stopped (ash 1 0))
 (defconstant anim-loop (ash 1 1))
+
+(defmacro def-get-fns (struct &rest vars)
+  `(progn ,@(loop for foreign-slot in vars
+	       collect `(defun ,(intern (concatenate 'string (symbol-name struct) "-GET-" (symbol-name foreign-slot))) (struct)
+			  (foreign-slot-value struct ',struct ',foreign-slot)))))
+
+(defmacro def-change-fns (struct &rest vars)
+  `(progn ,@(loop for foreign-slot in vars
+	       collect `(defun ,(intern (concatenate 'string (symbol-name struct) "-CHANGE-" (symbol-name foreign-slot))) (struct value)
+			  (setf (foreign-slot-value struct ',struct ',foreign-slot) value)))))
+
+;; ######################################## Render Spec Functions
 
 (defcfun make-render-spec (:pointer render-spec)
   (w :int)
@@ -176,6 +209,10 @@
 (defcfun free-render-spec :void
   (spec (:pointer render-spec)))
 
+(def-get-fns render-spec
+    texture-rect quad-points center-ratio w h)
+
+
 
 ; ####################################### texture functions ##################
 
@@ -202,6 +239,8 @@
 (defcfun clone-texture (:pointer texture)
   (tex (:pointer texture))
   (op texture-clone-op))
+
+(def-get-fns texture name)
 
 ; ####################################### image functions 
 
@@ -269,14 +308,30 @@
   (y :float)
   (z :float))
 
+(defbitfield rect2d-clip-result
+  :left 
+  :right
+  :top
+  :bottom)
+  
+(defcfun rect2d-outside-test rect2d-clip-result
+  (image (:pointer image))
+  (x1 :float)
+  (y1 :float)
+  (x2 :float)
+  (y2 :float))
 
 
 (defcfun change-image-texture (:pointer image)
   (image (:pointer image))
   (texture (:pointer texture)))
 
+
       
     
+(def-get-fns image
+    loc scale rot w h)
+
 
 
 ;; #################################### Animation Fuctions
@@ -310,13 +365,14 @@
 (defun get-image-data (anim)
   (foreign-slot-value anim 'animation 'image))
 
-(defun change-frame-rate (anim frame-rate)
-  (setf (foreign-slot-value anim 'animation 'frame-rate) (float frame-rate)))
 
-(defun change-flags (anim flags)
-  (declare ((unsigned-byte 32) flags))
-  (setf (foreign-slot-value anim 'animation 'flags) flags))
+(defun get-frame-rate (anim)
+  (foreign-slot-value anim 'animation 'frame-rate))
 
+
+
+(defmacro change-flip-callback (anim fn)
+  `(setf (foreign-slot-value ,anim 'animation 'flip-callback) (callback ,fn)))
 
 (defun make-animation-from-list (texs frame-rate flags x y z  scale rot)
   (let ((array (foreign-alloc '(:pointer texture) :count (length texs))))
@@ -385,7 +441,11 @@
     (anim (:pointer animation)))
 
 
+(def-get-fns animation 
+    ticks frame-rate frame-count current-frame flags)
 
+(def-change-fns animation 
+    ticks frame-rate  current-frame flags)
 
 ;; #################################### Sprite Functions
 
