@@ -1,5 +1,5 @@
 ;;;
-;;; Rendering a square with an image on it.
+;;; Chris dancing to the six flags song!
 ;;;
 ;;; Copyright (c) 2009 Nathanael Cunningham
 ;;; See LICENSE for full licensing details.
@@ -31,21 +31,31 @@
     :accessor drag-point)))
  
  
-(def-texture dwarf-frigate texture "./test-images/dwarf-frigit-no-turret.png")
-(def-texture dwarf-turret texture "./test-images/dwarf-frigit-turret.png")
- 
-(def-texture-list alien-look texture-list "./test-images/1eyed_alien_stance-~a.png" :start 1 :end 3)
-(def-texture alien-stare texture "./test-images/1eyed_alien_stance-2.png")
-(def-texture-dict alien
-  (:stare texture
-     "./test-images/1eyed_alien_stare.png")
-  (:look texture-list
-   "./test-images/1eyed_alien_stance-~a.png" :start 1 :end 3)
-  (:walk
-   (:right texture-list
-    "./test-images/1eyed_alien_walking-~a.png" :start 1 :end 2)
-   (:left texture-list
-    "./test-images/1eyed_alien_walking-left-~a.png" :start 1 :end 2)))
+
+(def-texture-dict chris
+    (:dance-1
+     (:left back-and-forth
+	    "./test-images/dance/dance1-~a.png" :start 1 :end 2)
+     (:right back-and-forth 
+	     (chris :dance-1 :left) :end 2 :texture '(texture-clone :clone-op :flop-h)))
+  (:dance-2
+   (:left back-and-forth
+	  "./test-images/dance/dance2-~a.png" :start 1 :end 3)
+   (:right back-and-forth 
+	   (chris :dance-2 :left) :end 3 :texture '(texture-clone :clone-op :flop-h)))
+  (:dance-3
+   (:left back-and-forth
+	  "./test-images/dance/dance3-~a.png" :start 1 :end 3)
+   (:right back-and-forth 
+	   (chris :dance-3 :left) :end 3 :texture '(texture-clone :clone-op :flop-h)))
+  (:dance-4
+   (:left back-and-forth
+	  "./test-images/dance/dance4-~a.png" :start 1 :end 3)
+   (:right back-and-forth 
+	   (chris :dance-4 :left) :end 3 :texture '(texture-clone :clone-op :flop-h)))
+  (:dance-5 back-and-forth
+	    "./test-images/dance/dance-5-~a.png" :start 1 :end 5))
+   
  
  
  
@@ -86,33 +96,25 @@
   (gl:matrix-mode :modelview)
   
   (gl:load-identity))
+
+(defun choose (&rest options)
+  (nth  (random (length options)) options))
+
  
- 
-(defun make-bounce-fn (low high &key (step 1) start-value (start-dir :up))
-  (assert (or (eq start-dir :up)
-	      (eq start-dir :down)))
-  (let ((var (or start-value low))
-	(dir start-dir))
-    (lambda ()
-      (if (eq dir :up)
-	  (when (>= (incf var step) high)
-	    (setf var high)
-	    (setf dir :down))
-	  (when (<= (decf var step) low)
-	    (setf var low)
-	    (setf dir :up)))
-      var)))
-(defun make-slide-up-fn (low high &key (step 1) start-value)
-  
-  (let ((var (or start-value low))
-	(dir :up))
-    (lambda ()
-      (if (eq dir :up)
-	  (when (>= (incf var step) high)
-	    (setf var high)
-	    (setf dir :stop))
-	  nil)
-      var)))
+(defun make-chris-fn ()
+  (let ((sprite (make-instance 'sprite :texture (reft alien) :first (choose
+								     '(:dance-1 :left)
+								     '(:dance-1 :right)
+								     '(:dance-2 :left)
+								     '(:dance-2 :right)
+								     '(:dance-3 :left)
+								     '(:dance-3 :right)
+								     '(:dance-4 :left)
+								     '(:dance-4 :right)
+								     :dance-5)
+			        :x  (random 512.0) :y (random 512.0) :frame-rate 1/8 :flags  backend:anim-loop )))
+    ;; left off here...
+    ))
  
  
 
@@ -137,7 +139,7 @@
 					;      (gl:tex-env :texture-env :texture-env-mode :replace)
       (with-textures (alien)
 	(let ((alien-sprites (loop for i from 0 repeat sprite-count
-				collect (make-instance 'sprite :texture (reft alien) :first :look :x  (random 512.0) :y (random 512.0) :frame-rate 1/8 :flags  backend:anim-loop ))))
+				collect )))
 
 	  (backend:with-sprite-array (aliens sprite-count (lambda (i)
 						    (nth i alien-sprites)))

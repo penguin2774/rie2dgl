@@ -3,6 +3,7 @@
 (defpackage rie2dgl
   (:use :cl)
   (:export 
+   :fp
 					; texture-db.lisp
    :name
    :file

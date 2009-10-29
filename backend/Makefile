@@ -1,6 +1,6 @@
 
 backend.so: texture.o image.o animation.o sprite.o
-	gcc --shared texture.o image.o animation.o sprite.o -o backend.so -lGL -lGLU -lSDL_image `sdl-config --libs`
+	gcc --shared texture.o image.o animation.o sprite.o -o ../backend.so -lGL -lGLU -lSDL_image `sdl-config --libs`
 
 texture.o: texture.c backend.h
 	gcc -c texture.c -o texture.o `sdl-config --cflags`

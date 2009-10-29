@@ -93,6 +93,7 @@
 	   free-sprite
 	   render-sprite
 	   render-sprites
+	   with-sprite-array
 	   get-sprite-data
 	   get-sprite-image-data))
 	   
@@ -464,6 +465,29 @@
   (sprites (:pointer :pointer))
   (count (:unsigned-int)))
 
+(defmacro with-sprite-array ((name count load-fn) &body body )
+  (let ((load-fn-gs (gensym "load-fn-"))
+	(count-gs (gensym "count-")))
+  `(let ((,load-fn-gs ,load-fn)
+	 (,count-gs ,count))
+    (with-foreign-object (,name '(:pointer sprite) ,count-gs)
+    
+     (flet ((,(intern (concatenate 'string "RENDER-" (symbol-name name) "-SPRITES")) ()
+	      (render-sprites ,name ,count-gs)))
+       (loop for i from 0 below ,count-gs
+	    do (setf (mem-aref ,name '(:pointer sprite) i) (let ((result (funcall ,load-fn-gs i)))
+							 (typecase result
+							   (rie2dgl:image
+							    (make-sprite (rie2dgl:fp result) :image))
+							   ((or rie2dgl:animation rie2dgl:sprite)
+							    (make-sprite (rie2dgl:fp result) :animation))))))
+       (unwind-protect (progn ,@body)
+	 (loop for i from 0 below ,count-gs
+	     do (foreign-free (mem-aref ,name '(:pointer sprite) i)))))))))
+  
+					   
+	 
+
 
 (defun get-sprite-data (sprite)
   (ecase (foreign-slot-value sprite 'sprite 'type)
@@ -645,81 +669,6 @@
 
 (defun choose (&rest options)
   (nth  (random (length options)) options))
-(defparameter +CRISSES+ 100) 
-(defparameter +TICK-TIME+ 430)
+
  
-(defun test-dancing-criss ()
-  (sdl:with-init (sdl-cffi::sdl-init-video )
-    (sdl:window 1024 1024 :flags sdl:SDL-OPENGL :title-caption "Testing!")
-    (let ((dance-1 (bind-textures-to-files  (merge-pathnames "dance/dance1-1.png" +image-path+)
-					    (merge-pathnames "dance/dance1-3.png" +image-path+)))
-	  (dance-2 (bind-textures-to-files  (merge-pathnames "dance/dance2-1.png" +image-path+)
-					    (merge-pathnames "dance/dance2-2.png" +image-path+)
-					    (merge-pathnames "dance/dance2-3.png" +image-path+)
-					    (merge-pathnames "dance/dance2-2.png" +image-path+)))
-		   
-	  (dance-3 (bind-textures-to-files  (merge-pathnames "dance/dance3-1.png" +image-path+)
-					    (merge-pathnames "dance/dance3-2.png" +image-path+)
-					    (merge-pathnames "dance/dance3-3.png" +image-path+)
-					    (merge-pathnames "dance/dance3-2.png" +image-path+)))
-		     
-	  (dance-4 (bind-textures-to-files  (merge-pathnames "dance/dance4-1.png" +image-path+)
-					    (merge-pathnames "dance/dance4-2.png" +image-path+)
-					    (merge-pathnames "dance/dance4-3.png" +image-path+)
-					    (merge-pathnames "dance/dance4-2.png" +image-path+)))
 
-	  (dance-5 (bind-textures-to-files  (merge-pathnames "dance/dance5-1.png" +image-path+)
-					    (merge-pathnames "dance/dance5-2.png" +image-path+)
-					    (merge-pathnames "dance/dance5-3.png" +image-path+)
-					    (merge-pathnames "dance/dance5-4.png" +image-path+)
-					    (merge-pathnames "dance/dance5-5.png" +image-path+)
-					    (merge-pathnames "dance/dance5-4.png" +image-path+)
-					    (merge-pathnames "dance/dance5-3.png" +image-path+)
-					    (merge-pathnames "dance/dance5-2.png" +image-path+)))
-	  sprites last-time start-p)
-	    
-	
-      (setf sprites (foreign-alloc '(:pointer sprite) :count +CRISSES+))
-      (print +crisses+)
-      (loop for i from 0 below +CRISSES+
-	 do (setf (mem-aref sprites '(:pointer sprite) i) (make-sprite (make-animation-from-list (choose dance-1
-													 dance-2
-													 dance-3
-													 dance-4
-													 dance-5)
-												 (*  4 0.0508 )
-												 ANIM-STOPPED 
-												 (random 1024.0) 
-												 (random 1024.0)
-												 0.0 1.0 0.0) :animation)))
-
-	
-	
-      (resize-window 1024 1024)
-      (setup-RC)
-	
-      (setf (sdl:frame-rate) 45)
-      (setf last-time (get-internal-real-time))
-      (sdl:with-events ()
-	(:quit-event ()
-		     (loop for i from 0 below +CRISSES+
-			do (free-sprite (mem-aref sprites '(:pointer sprite) i)))
-		     (loop for texture in (append dance-1 dance-2 dance-3 dance-4 dance-5)
-			do (free-texture texture))
-		     t)
-	(:idle ()
-	       (clear-scene)
-	       (when start-p
-		 (let ((c-time (get-internal-real-time)))
-		   (when (>= (- c-time last-time) (/ +TICK-TIME+ 2))
-		     (loop for i from 0 below +CRISSES+
-			do (next-frame (get-sprite-data (mem-aref sprites '(:pointer sprite) i))))
-		     (setf last-time c-time))))
-	       (render-sprites sprites +CRISSES+)
-	       
-
-	       (gl:flush)
-	       (sdl:update-display))
-	(:key-down-event (:key key)
-			   (when (sdl:key= key :SDL-KEY-SPACE)
-			     (setf start-p (not start-p))))))))

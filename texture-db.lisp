@@ -278,34 +278,36 @@
     
 
 ;; this is going to be tricky
-(defmacro def-texture (name path)
+(defmacro def-texture (name class path &rest keys)
   (typecase path
-    ((or pathname string)
-     `(setf (gethash ',name *texture-database*) (make-instance 'texture :data ,path)))
-    (t
-     `(typecase ,path
-	((or pathname string)
-	 (setf (gethash ',name *texture-database*) (make-instance 'texture :data ,path)))
-	(texture
-	 (setf (gethash ',name *texture-database*) ,path))))))
+    ((or pathname string list)
+     `(setf (gethash ',name *texture-database*) (make-instance ',class :data ,path ,@keys)))))
 					    
 
-(defmacro def-texture-list (name path &key (start 0) end bind-fn)
+(defmacro def-texture-list (name class path &key (start 0) end texture)
 
   (let ((start-g (gensym "start-"))
 	(end-g (gensym "end-"))
-	(bind-fn-g (gensym "bind-fn-"))
+	
 	(path-g (gensym "path-")))
     `(let ((,start-g ,start)
-	   (,end-g ,end)
-	   (,bind-fn-g ,bind-fn)
-	   (,path-g ,path))
+	   (,end-g ,end)   
+	   (,path-g ,path)
+	   )
        (setf (gethash ',name *texture-database*)
 	     
-	     (make-instance 'texture-list :sub-textures (loop for i from ,start-g to ,end-g
+	     (make-instance ',class :sub-textures (loop for i from ,start-g to ,end-g
 							   
-							   collect (make-instance 'texture :data (format nil ,path-g i)
-										  :bind-fn (or ,bind-fn-g #'standard-bind)))
+							   collect (make-instance ',(if (and (first texture) (symbolp (first texture)))
+											(first texture)
+											'texture)
+										    :data ,(typecase path
+												     ((or string pathname)
+												      `(format nil ,path-g i))
+												     (list
+												      `(append ,path (list i))))
+												      
+										  ,@texture))
 			    :length (1+ (- ,end-g ,start-g))))
        )))
 
