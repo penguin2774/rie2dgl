@@ -133,7 +133,7 @@ struct image * change_image_texture(struct image * image, struct texture * textu
 struct render_spec * get_render_spec(struct image * image);
 
 int rect2d_outside_test(struct image *image, float x1, float y1, float x2, float y2);
-    
+int onscreenp(struct image *image, float w, float h);    
 
 // #################################### Animation Fuctions
   

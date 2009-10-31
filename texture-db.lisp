@@ -159,7 +159,8 @@
 (defgeneric bind (texture))
 
 (defmethod bind ((self texture))
-  (assert (probe-file (data self)))
+  (assert  (probe-file (data self)) (data self) "File ~a not found!" (data self))
+
   (sdl:with-surface (surf (sdl-image:load-image (data self)))
     (gl:enable :texture-2d)
     (let* ((tex (first (gl:gen-textures 1)))
@@ -263,7 +264,7 @@
 
 (defmethod reference-texture ((self symbol) &rest args)
   (if self
-      (apply #'reference-texture (or (gethash self *texture-database*) (error "No such texture ~a in database." (car args))) args)
+      (apply #'reference-texture (or (gethash self *texture-database*) (error "No such texture ~a in database." self)) args)
       (error "reference-texture called with nil symbol")))
   
 	  

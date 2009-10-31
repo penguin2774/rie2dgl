@@ -81,6 +81,7 @@ struct animation  * change_frames(struct animation * anim, struct texture ** tex
   anim->frames = texs;
   anim->frame_count = count;
   anim->ticks = 0;
+  anim->current_frame = 0;
   change_image_texture(anim->image, texs[0]);
   return anim;
 }
@@ -88,6 +89,7 @@ struct animation  * change_frames(struct animation * anim, struct texture ** tex
 struct animation * change_frames_disable(struct animation * anim, struct texture * tex)
 {
   disable_animation(anim);
+  anim->current_frame = 0;
   change_image_texture(anim->image, tex);
   return anim;
 }

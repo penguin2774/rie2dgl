@@ -6,7 +6,7 @@
 ;;;
  
  
-(defpackage :sprite-test
+(defpackage :chris-test
   (:use :cl :rie2dgl)
   (:export :run))
  
@@ -17,7 +17,7 @@
  
  
  
-(in-package :sprite-test)
+(in-package :chris-test)
  
 (defclass window ()
   ((rot-x
@@ -37,24 +37,24 @@
      (:left back-and-forth
 	    "./test-images/dance/dance1-~a.png" :start 1 :end 2)
      (:right back-and-forth 
-	     (chris :dance-1 :left) :end 2 :texture '(texture-clone :clone-op :flop-h)))
+	     (chris :dance-1 :left) :end 2 :texture '(texture-clone :clone-op :flip-h)))
   (:dance-2
    (:left back-and-forth
 	  "./test-images/dance/dance2-~a.png" :start 1 :end 3)
    (:right back-and-forth 
-	   (chris :dance-2 :left) :end 3 :texture '(texture-clone :clone-op :flop-h)))
+	   (chris :dance-2 :left) :end 3 :texture '(texture-clone :clone-op :flip-h)))
   (:dance-3
    (:left back-and-forth
 	  "./test-images/dance/dance3-~a.png" :start 1 :end 3)
    (:right back-and-forth 
-	   (chris :dance-3 :left) :end 3 :texture '(texture-clone :clone-op :flop-h)))
+	   (chris :dance-3 :left) :end 3 :texture '(texture-clone :clone-op :flip-h)))
   (:dance-4
    (:left back-and-forth
 	  "./test-images/dance/dance4-~a.png" :start 1 :end 3)
    (:right back-and-forth 
-	   (chris :dance-4 :left) :end 3 :texture '(texture-clone :clone-op :flop-h)))
+	   (chris :dance-4 :left) :end 3 :texture '(texture-clone :clone-op :flip-h)))
   (:dance-5 back-and-forth
-	    "./test-images/dance/dance-5-~a.png" :start 1 :end 5))
+	    "./test-images/dance/dance5-~a.png" :start 1 :end 5))
    
  
  
@@ -102,7 +102,7 @@
 
  
 (defun make-chris-fn ()
-  (let ((sprite (make-instance 'sprite :texture (reft alien) :first (choose
+  (let ((sprite (make-instance 'sprite :texture (reft chris) :first (choose
 								     '(:dance-1 :left)
 								     '(:dance-1 :right)
 								     '(:dance-2 :left)
@@ -112,38 +112,64 @@
 								     '(:dance-4 :left)
 								     '(:dance-4 :right)
 								     :dance-5)
-			        :x  (random 512.0) :y (random 512.0) :frame-rate 1/8 :flags  backend:anim-loop )))
-    ;; left off here...
-    ))
- 
+			        :x  (random 512.0) :y (random 512.0) :frame-rate 1/8 :flags  backend:anim-loop ))
+	(ski 0.0))
+    (lambda ()
+      (let ((ski? (eq (first (current sprite)) :dance-1) )
+	    
+	    (speed 14.0))
+      (when (>= (+ (ticks sprite) (frame-rate sprite)) 1.0) ; frame changes next tick
+	(cond 
+	  ((= (random 25) 1)
+	   (apply #'change sprite (choose
+				   '(:dance-1 :left)
+				   '(:dance-1 :right)
+				   '(:dance-2 :left)
+				   '(:dance-2 :right)
+				   '(:dance-3 :left)
+				   '(:dance-3 :right)
+				   '(:dance-4 :left)
+				   '(:dance-4 :right)
+				   '(:dance-5))))
+	  ((and ski?  (= (current-frame sprite) 1))
+	   (setf ski 0.95))))
+      (when ski?
+	(let ((clip (outside-bounds? sprite 0.0 0.0 512.0 512.0)))
+	  (case (first clip)
+	    (:left
+	     (change sprite :dance-1 :right))
+	    (:right
+	     (change sprite :dance-1 :left))))
+	     
+	    
+	(move sprite (* ski (if (eq (second (current sprite)) :left)
+				(- speed)
+				speed)) 0.0)
+	(setf ski (* ski ski))))
+      (render sprite))))
+  
  
 
   
  
 (defun run ()
   (let ((w (make-instance 'window))
-	(bounce-fn (make-slide-up-fn 0.0 3.0 :step 0.005
-				     :start-value 0.0))
+	
 	
 
 	
-	(sprite-count 5000)
-	  
-	(count (* 7 40))
-	(start-p nil))
+	(sprite-count 50))
     (sdl:with-init ()
       (sdl:window 512 512 :flags sdl:SDL-OPENGL :title-caption "Nate's amazing moving box")
       (resize-window w 512 512)
 					;      (sdl:set-gl-attribute :sdl-gl-doublebuffer 1)
       (setup-RC w)
 					;      (gl:tex-env :texture-env :texture-env-mode :replace)
-      (with-textures (alien)
-	(let ((alien-sprites (loop for i from 0 repeat sprite-count
-				collect )))
+      (with-textures (chris)
+	(let ((chrises (loop for i from 0 repeat sprite-count
+				collect (make-chris-fn) )))
 
-	  (backend:with-sprite-array (aliens sprite-count (lambda (i)
-						    (nth i alien-sprites)))
-	  
+	  	  
 	    (setf (sdl:frame-rate) 45)
  
  
@@ -155,26 +181,8 @@
 		   
 		     (render-scene w)
 		   
- 		     (loop for alien in alien-sprites 
- 			with bounce = (funcall bounce-fn)
-			
- 			if (and (eq (first (current alien)) :look) (>= 0 count))
- 			do (change alien :walk :right)
- 			if (>= 0 count)
- 			do (if (stopped? alien)
- 			       (start alien))
- 			(move alien 1.0 (- 1.0 (random 2.0)))
- 			else
- 			do (scale alien bounce)
-			
- 			finally
- 			(decf count))
-		     (render-aliens-sprites)
-					;		      finally
-					;		      (decf count))
- 
- 
- 
+ 		     (loop for i in chrises
+			  do (funcall i))
  
  
  
@@ -185,6 +193,5 @@
 	      (:video-expose-event () (sdl:update-display))
 	      (:key-down-event (:key key)
 			       (when (sdl:key= key :SDL-KEY-SPACE)
-				 (setf start-p t)))
-	      )))))))
+				 (print key)))))))))
  

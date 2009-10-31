@@ -199,3 +199,15 @@ int rect2d_outside_test(struct image *image, float bx1, float by1, float bx2, fl
   return(result);
 }
       
+int onscreenp(struct image * image, float w, float h)
+{
+  float * quads = get_render_spec(image)->quad_points;
+  float x1 = quads[0] + image->loc[0];
+  float y1 = quads[1] + image->loc[1];
+  float x2 = quads[2] + image->loc[0];
+  float y2 = quads[3] + image->loc[1];
+  if(x2 < 0 || x1 > w || y2 < 0 || y1 > w)
+    return(1);
+  return(0);
+}
+		       

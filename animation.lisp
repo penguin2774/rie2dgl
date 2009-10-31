@@ -108,6 +108,7 @@
       (backend:animation-change-flags (fp self) new-flags)))
 
 (defmethod change-texture ((self animation) new-texture)
+
   (etypecase new-texture 
     (texture
      (backend:change-frames-disable (fp self) (fp new-texture)))
