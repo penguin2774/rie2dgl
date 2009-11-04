@@ -1,0 +1,61 @@
+
+animation.c,212
+struct animation * make_animation(5,24
+void free_animation(16,435
+inline int stoppedp(22,526
+inline struct animation  * toggle(27,614
+inline struct animation  * start(33,724
+struct animation  * stop(40,840
+
+backend.c,149
+struct sprite 2,1
+void load_texture(8,60
+void setup_RC 30,643
+void render_sprite(38,706
+void resize_window(67,1431
+void render_sprites(82,1696
+
+image.c,483
+struct image * make_image(5,24
+void cache_image(19,373
+void render_image(27,494
+void render(58,1183
+struct image * set_image_center(70,1389
+struct image * push_subimage(80,1648
+struct image * rem_subimage(89,1923
+union sprite * pop_subimage(106,2231
+inline struct image * rotate_image(119,2482
+inline struct image * scale_image(126,2600
+inline struct image * move_image(132,2714
+inline struct image * relocate_image(140,2883
+struct image * change_image_texture(149,3054
+
+texture.c,403
+struct render_spec * make_render_spec(4,23
+struct render_spec * set_center(16,352
+struct render_spec * recenter(23,529
+inline int cachedp(34,932
+void render_render_spec(43,1047
+struct render_spec * cache(74,1803
+struct render_spec * free_cache(104,2527
+inline int loadedp(111,2654
+struct texture * make_texture(119,2777
+inline void free_render_spec(127,2976
+inline void free_texture(132,3063
+
+backend.h,292
+struct render_spec 8,127
+struct texture 18,266
+union sprite 25,332
+  enum sprite_type 26,347
+  SPRITE_IMAGE,27,368
+  SPRITE_ANIMATION}SPRITE_ANIMATION28,384
+struct sprite_cons 34,466
+struct image 39,543
+#define ANIM_STOPPED 49,700
+#define ANIM_LOOP 50,727
+struct animation 52,752
+
+texture.h,49
+struct render_spec 8,127
+struct texture 18,266

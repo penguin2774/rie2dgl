@@ -17,7 +17,7 @@
   
 	
     
-(defmethod initialize-instance ((self image) &rest initargs &key  texture x y z (scale 1.0) (rot 0.0) &allow-other-keys)
+(defmethod initialize-instance ((self image) &rest initargs &key  texture x y (z 0.0) (scale 1.0) (rot 0.0) &allow-other-keys)
   (declare (ignore initargs))
   (let* ((img (backend:make-image (fp texture) x y z scale rot))
 	 (sprite (backend:make-sprite img :image)))
@@ -43,7 +43,7 @@
   (backend:render-image (fp image)))
 
 (defmethod set-center ((self image) w-ratio h-ratio)
-  (backend:set-center (fp self) w-ratio h-ratio))
+  (backend:set-image-center (fp self) w-ratio h-ratio))
 
 (defgeneric push-subimage (image sub-image))
 

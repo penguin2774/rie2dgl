@@ -49,6 +49,9 @@
    :location
    :set-center
    :sub-images
+   :push-subimage
+   :pop-subimage
+   :rem-subimage
    :load-texture
    :render
    :add-subimage

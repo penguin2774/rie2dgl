@@ -125,7 +125,7 @@
 	
 
 	
-	(sprite-count 5000)
+	(sprite-count 1000)
 	  
 	(count (* 7 40))
 	(start-p nil))

@@ -21,6 +21,6 @@
    (:file "texture-db")
    (:file "image" )
    (:file "animation")
-   (:file "sprite"))
-;   (:module "tests" :components ((:file "sprite"))))
+   (:file "sprite")
+   (:module "tests" :components ((:file "sprite-test") (:file "chris-test"))))
   :serial t)

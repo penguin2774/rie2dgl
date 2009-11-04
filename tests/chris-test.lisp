@@ -100,8 +100,9 @@
 (defun choose (&rest options)
   (nth  (random (length options)) options))
 
+
  
-(defun make-chris-fn ()
+(defun make-chris-fn (y)
   (let ((sprite (make-instance 'sprite :texture (reft chris) :first (choose
 								     '(:dance-1 :left)
 								     '(:dance-1 :right)
@@ -112,7 +113,7 @@
 								     '(:dance-4 :left)
 								     '(:dance-4 :right)
 								     :dance-5)
-			        :x  (random 512.0) :y (random 512.0) :frame-rate 1/8 :flags  backend:anim-loop ))
+			        :x  (random 512.0) :y y :frame-rate 1/5 :flags  backend:anim-loop ))
 	(ski 0.0))
     (lambda ()
       (let ((ski? (eq (first (current sprite)) :dance-1) )
@@ -137,9 +138,15 @@
 	(let ((clip (outside-bounds? sprite 0.0 0.0 512.0 512.0)))
 	  (case (first clip)
 	    (:left
-	     (change sprite :dance-1 :right))
+	     (when (eq (second (current sprite)) :left)
+	       (change sprite :dance-1 :right)))
+	     
+	    
 	    (:right
-	     (change sprite :dance-1 :left))))
+	     (when (eq (second (current sprite)) :right)
+	       (change sprite :dance-1 :left))
+	     
+	     )))
 	     
 	    
 	(move sprite (* ski (if (eq (second (current sprite)) :left)
@@ -149,30 +156,33 @@
       (render sprite))))
   
  
-
-  
+(defvar *music* nil)  
  
 (defun run ()
-  (let ((w (make-instance 'window))
+  (let* ((w (make-instance 'window))
 	
 	
 
-	
-	(sprite-count 50))
+	(time 0)
+	(sprite-count 50)
+	(y-inc (/ 512 sprite-count)) )
     (sdl:with-init ()
+      (sdl-mixer:open-audio :chunksize 1024 :enable-callbacks nil)
+      (unless *music*
+	(setf *music* (sdl-mixer:load-music "/home/nathan/prj/rie2dgl/test-music/Six Flags Ad.ogg")))
       (sdl:window 512 512 :flags sdl:SDL-OPENGL :title-caption "Nate's amazing moving box")
       (resize-window w 512 512)
-					;      (sdl:set-gl-attribute :sdl-gl-doublebuffer 1)
+      (sdl:set-gl-attribute :sdl-gl-doublebuffer 1)
       (setup-RC w)
-					;      (gl:tex-env :texture-env :texture-env-mode :replace)
+		
       (with-textures (chris)
-	(let ((chrises (loop for i from 0 repeat sprite-count
-				collect (make-chris-fn) )))
+	(let ((chrises (loop for i from  sprite-count downto 0
+				collect (make-chris-fn (* i y-inc)) )))
 
 	  	  
 	    (setf (sdl:frame-rate) 45)
- 
- 
+	    (sdl-mixer:play-music *music* :loop t)
+	    
 	    (sdl:with-events ()
 	      (:quit-event () t)
 	      (:idle ()
@@ -180,7 +190,7 @@
 		 
 		   
 		     (render-scene w)
-		   
+		     (incf time)
  		     (loop for i in chrises
 			  do (funcall i))
  
@@ -193,5 +203,9 @@
 	      (:video-expose-event () (sdl:update-display))
 	      (:key-down-event (:key key)
 			       (when (sdl:key= key :SDL-KEY-SPACE)
-				 (print key)))))))))
+				 (print time)
+				 (setf time 0)))))))
+    (sdl-mixer:free *music*)
+    (setf *music* nil)
+    (sdl-mixer:close-audio t)))
  

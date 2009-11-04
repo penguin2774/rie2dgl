@@ -187,8 +187,8 @@
 
 (defcfun set-center (:pointer render-spec)
   (spec (:pointer render-spec))
-  (w_ratio :int)
-  (h_ratio :int))
+  (w_ratio :float)
+  (h_ratio :float))
 
 (defcfun recenter (:pointer render-spec)
   (spec (:pointer render-spec)))
@@ -476,14 +476,8 @@
 	      (render-sprites ,name ,count-gs)))
        (loop for i from 0 below ,count-gs
 	    do (setf (mem-aref ,name '(:pointer sprite) i) (let ((result (funcall ,load-fn-gs i)))
-							 (typecase result
-							   (rie2dgl:image
-							    (make-sprite (rie2dgl:fp result) :image))
-							   ((or rie2dgl:animation rie2dgl:sprite)
-							    (make-sprite (rie2dgl:fp result) :animation))))))
-       (unwind-protect (progn ,@body)
-	 (loop for i from 0 below ,count-gs
-	     do (foreign-free (mem-aref ,name '(:pointer sprite) i)))))))))
+							     (rie2dgl:sprite result))))
+       (progn ,@body))))))
   
 					   
 	 
