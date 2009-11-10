@@ -7,7 +7,7 @@
 
 
 (defsystem rie2dgl
-  :depends-on (cl-opengl cl-glut cl-glu lispbuilder-sdl lispbuilder-sdl-image)
+  :depends-on (cl-opengl cl-glut cl-glu lispbuilder-sdl lispbuilder-sdl-image lispbuilder-sdl-mixer)
   :description "A 2d opengl graphics library."
   :version "0.0"
   :author "Nathanael Cunningham <penguin2774@gmail.com>"
